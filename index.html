@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jway - Portal de Acesso</title>
+    
+    <link rel="icon" href="imagens/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="estilos-globais.css">
+
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: rgba(10, 25, 47, 0.9); padding: 40px; border-radius: 12px; border: 1px solid var(--jway-blue); width: 100%; max-width: 350px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); }
+        .login-box h2 { margin: 0 0 25px 0; color: var(--jway-blue); font-size: 0.9rem; letter-spacing: 2px; font-weight: 800; opacity: 0.9; text-transform: uppercase; }
+        .input-field { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white; box-sizing: border-box; outline: none; font-size: 0.95rem; font-weight: bold; font-family: inherit; transition: 0.2s; }
+        .input-field:focus { border-color: var(--jway-blue); background: rgba(0,0,0,0.8); }
+        .pass-wrapper { position: relative; width: 100%; margin-bottom: 15px; }
+        .pass-wrapper input { margin-bottom: 0 !important; padding-right: 45px !important; }
+        .toggle-pass { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.5; width: 20px; height: 20px; user-select: none; -webkit-user-drag: none; }
+        .switch-link { display: block; margin-top: 20px; color: rgba(255,255,255,0.4); font-size: 0.75rem; text-decoration: none; cursor: pointer; transition: 0.2s; }
+        .switch-link:hover { color: var(--jway-blue); }
+        .recovery-link { display: none; margin-top: 10px; font-size: 0.7rem; color: rgba(255,255,255,0.5); text-decoration: underline; cursor: pointer; }
+        .recovery-link:hover { color: var(--jway-blue); }
+        #login-msg { font-size: 0.8rem; margin-top: 15px; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <img src="imagens/jwayseamlessflow.png" alt="Jway Logo" style="width: 140px; height: auto; margin-bottom: 15px;">
+
+        <h2 id="titulo-login">ACESSO FÁBRICA</h2>
+
+        <div id="modo-operador">
+            <select id="user-dropdown" class="input-field" style="cursor: pointer;">
+                <option value="">A carregar utilizadores...</option>
+            </select>
+        </div>
+
+        <div id="modo-admin" style="display: none;">
+            <input type="email" id="email" class="input-field" placeholder="O seu email Administrador">
+        </div>
+
+        <div class="pass-wrapper">
+            <input type="password" id="password" class="input-field" placeholder="Palavra-passe">
+            <img src="imagens/eye.png" class="toggle-pass" id="olho-magico" title="Manter premido para ver" alt="Ver Password">
+        </div>
+
+        <button class="btn-primary" style="width: 100%; padding: 14px; font-size: 1rem;" onclick="fazerLogin()">
+            ENTRAR NO SISTEMA
+        </button>
+
+        <a id="link-recuperar" class="recovery-link" onclick="recuperarPassword()">Esqueci-me da palavra-passe</a>
+        <p id="login-msg"></p>
+        <a class="switch-link" onclick="alternarModoLogin()" id="btn-switch">🔒 Acesso Administrador</a>
+
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <img src="imagens/Alecgroup.png" alt="Alecgroup Logo" style="height: 25px; opacity: 0.5;">
+            <div style="font-size: 0.65rem; color: rgba(255,255,255,0.4); letter-spacing: 0.5px;">&copy; 2026 | Desenvolvido por João Carvalho</div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="autenticacao.js"></script>
+
+    <script>
+        let modoAtual = 'operador';
+        const inputPass = document.getElementById('password');
+        const iconOlho = document.getElementById('olho-magico');
+
+        function alternarModoLogin() {
+            const divOp = document.getElementById('modo-operador');
+            const divAdmin = document.getElementById('modo-admin');
+            const titulo = document.getElementById('titulo-login');
+            const btnSwitch = document.getElementById('btn-switch');
+            const linkRecuperar = document.getElementById('link-recuperar');
+
+            if (modoAtual === 'operador') {
+                divOp.style.display = 'none';
+                divAdmin.style.display = 'block';
+                linkRecuperar.style.display = 'inline-block';
+                titulo.innerText = 'ACESSO ADMINISTRADOR';
+                btnSwitch.innerText = '⬅ Voltar ao Acesso Fábrica';
+                modoAtual = 'admin';
+            } else {
+                divOp.style.display = 'block';
+                divAdmin.style.display = 'none';
+                linkRecuperar.style.display = 'none';
+                titulo.innerText = 'ACESSO FÁBRICA';
+                btnSwitch.innerText = '🔒 Acesso Administrador';
+                modoAtual = 'operador';
+            }
+        }
+
+        // CAMINHOS ATUALIZADOS NO CÓDIGO JAVASCRIPT
+        function mostrarPassword(e) {
+            e.preventDefault();
+            inputPass.type = "text";
+            iconOlho.src = "imagens/hidden.png";
+        }
+
+        function esconderPassword() {
+            inputPass.type = "password";
+            iconOlho.src = "imagens/eye.png";
+        }
+
+        iconOlho.addEventListener('mousedown', mostrarPassword);
+        iconOlho.addEventListener('mouseup', esconderPassword);
+        iconOlho.addEventListener('mouseleave', esconderPassword);
+        iconOlho.addEventListener('touchstart', mostrarPassword);
+        iconOlho.addEventListener('touchend', esconderPassword);
+        iconOlho.addEventListener('touchcancel', esconderPassword);
+    </script>
+</body>
+</html>

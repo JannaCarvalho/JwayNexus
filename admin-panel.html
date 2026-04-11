@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#050d1a">
+    
+    <title>Jway - Painel de Administração</title>
+    
+    <link rel="icon" href="imagens/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="stylesheet" href="estilos-globais.css?v=15">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        const isAdmin = localStorage.getItem('jwayUserIsAdmin');
+        if (isAdmin !== 'true') {
+            window.location.replace('index.html');
+        }
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-messaging-compat.js"></script>
+
+    <script src="firebase-config.js"></script>
+    <script src="imprimir-admin.js"></script>
+</head>
+<body>
+
+    <div id="top-sticky-bar">
+        <div id="conn-status" class="status-work"><i class="fa-solid fa-database"></i> A LIGAR À BASE DE DADOS...</div>
+        
+        <div class="top-bar-actions">
+            <button class="btn-top-bar btn-print" onclick="imprimirRelatorioAdmin()" title="Imprimir Relatório">
+                <i class="fa-solid fa-print"></i> Imprimir Mapa
+            </button>
+            <button class="btn-top-bar btn-refresh" onclick="window.location.reload()" title="Forçar Atualização">
+                <i class="fa-solid fa-arrows-rotate"></i> Atualizar Dados
+            </button>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="header-brand">
+            <img src="imagens/jwayseamlessflow.png" alt="Jway Logo" class="header-logo">
+            <h1 class="header-title">PAINEL DE ADMINISTRAÇÃO</h1>
+        </div>
+        
+        <div class="user-nav-panel">
+            <div id="live-clock" class="live-clock">A carregar hora...</div>
+            <div class="user-badge-box">
+                <div class="user-info-text">
+                    <span id="user-name-display" style="font-size: 0.85rem; font-weight: 800; color: white;"></span>
+                    <span id="user-cat-display" style="font-size: 0.65rem; font-weight: 900; color: var(--jway-blue); text-transform: uppercase;"></span>
+                </div>
+                <button id="btn-go-admin" class="btn-primary" style="background: rgba(255, 71, 87, 0.15); color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.4); padding: 6px 12px; font-size: 0.75rem; display: none;" onclick="window.location.href='admin-panel.html'">⚙️ PAINEL ADMIN</button>
+                <button class="btn-primary" style="background: rgba(255, 71, 87, 0.15); color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.3); padding: 6px 12px; font-size: 0.75rem;" onclick="fazerLogout()">Sair <i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="action-bar">
+        <div style="display: flex; flex-grow: 1; align-items: center;">
+            <div class="search-bar-container">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" class="search-input" placeholder="Pesquisar por tear, cliente, artigo ou técnico..." oninput="filtrarGrelha(this.value)">
+            </div>
+            <button id="btn-clear-filters" onclick="limparFiltrosGerais()"><i class="fa-solid fa-xmark"></i> Limpar Filtro</button>
+        </div>
+
+        <div class="menu-dropdown-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="btn-modern btn-notify" style="padding: 12px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; cursor: pointer; border: 1px solid transparent;" onclick="abrirModalAlertas('pendentes', 'ALL')">
+                <i class="fa-solid fa-bell"></i> Notificações <span id="badge-alertas" class="badge">0</span>
+            </button>
+            <button class="btn-modern btn-history" style="padding: 12px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; cursor: pointer; border: 1px solid transparent;" onclick="abrirModalAlertas('historico', 'ALL')">
+                <i class="fa-solid fa-clock-rotate-left"></i> Histórico
+            </button>
+            
+            <div style="position: relative;">
+                <button id="btn-navegacao" class="btn-modern" style="padding: 12px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; cursor: pointer; border: 1px solid transparent; background: rgba(255,255,255,0.05); color: white;" onclick="toggleMenuNav(event)">
+                    <i class="fa-solid fa-bars"></i> Navegação
+                </button>
+                <div id="menu-nav-dropdown" class="menu-dropdown">
+                    <a href="planeamentojway.html"><i class="fa-solid fa-industry"></i> Chão de Fábrica</a>
+                    <a href="planeamentoexpandido.html"><i class="fa-solid fa-boxes-stacked"></i> Mapa de Encomendas</a>
+                    <a href="planeamentoexpandido.html"><i class="fa-solid fa-fill-drip"></i> Mapa de Partidas Tinturaria</a>
+                    <a href="planeamentoexpandido.html"><i class="fa-solid fa-scroll"></i> Cotações Fios</a>
+                    <a href="planeamentoexpandido.html"><i class="fa-solid fa-file-invoice-dollar"></i> Cotações Tinturaria</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="mainGrid" class="dashboard-grid"></div>
+
+    <div class="dashboard-widgets-container" style="max-width: 98%; margin: 30px auto 20px auto; display: flex; gap: 20px; flex-wrap: wrap;">
+        <div class="dashboard-widget" style="flex: 1; min-width: 350px; background: rgba(10, 25, 47, 0.4); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column;">
+            <h3 style="margin-top:0; color:white; font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 15px;"><i class="fa-solid fa-chart-pie"></i> ESTADO DA FÁBRICA <span style="font-size:0.6rem; opacity:0.5; font-weight:normal; text-transform:none;">(Clica para filtrar)</span></h3>
+            <div id="stats-dashboard" class="stats-dashboard" style="margin-bottom: 20px;"></div>
+            <div style="position: relative; height: 180px; width: 100%; margin-top: auto;">
+                <canvas id="estadoFabricaChart"></canvas>
+            </div>
+        </div>
+
+        <div class="dashboard-widget" style="flex: 1; min-width: 350px; background: rgba(10, 25, 47, 0.4); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); align-self: flex-start;">
+            <h3 style="margin-top:0; color:white; font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 15px;"><i class="fa-solid fa-swatchbook"></i> VOLUME DE AMOSTRAS / TÉCNICO</h3>
+            <div id="tech-dashboard" class="stats-dashboard" style="justify-content: flex-start;"></div>
+        </div>
+    </div>
+
+    <div class="footer-mgmt">
+        <h3 style="margin-top:0; color:var(--jway-blue); font-size: 0.9rem; letter-spacing: 1px;"><i class="fa-solid fa-gears"></i> ADMINISTRAÇÃO DO SISTEMA</h3>
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(0,168,255,0.1); border: 1px solid rgba(0,168,255,0.3);" onclick="abrirModalAdmin()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-users"></i></span> Utilizadores</button>
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(0,168,255,0.1); border: 1px solid rgba(0,168,255,0.3);" onclick="abrirModalCaracteristicas()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-screwdriver-wrench"></i></span> Características</button>
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(0,168,255,0.1); border: 1px solid rgba(0,168,255,0.3);" onclick="abrirModalGrelha()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-table-cells-large"></i></span> Grelha & Layout</button>
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(33, 115, 70, 0.1); border: 1px solid rgba(33, 115, 70, 0.3); color: #4ade80;" onclick="exportarCSV()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-file-csv"></i></span> Exportar Ocorrências</button>
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(112, 173, 71, 0.1); border: 1px solid rgba(112, 173, 71, 0.3); color: var(--color-producao);" onclick="abrirModalAddTear()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-circle-plus"></i></span> Adicionar Tear</button>
+            <button class="btn-primary" style="flex:1; min-width: 160px; padding: 20px; font-size: 0.95rem; background: rgba(155, 89, 182, 0.1); border: 1px solid rgba(155, 89, 182, 0.3); color: #c471ed;" onclick="ativarNotificacoesPush()"><span style="font-size:1.8rem; display:block; margin-bottom:10px;"><i class="fa-solid fa-mobile-screen-button"></i></span> Ativar Notificações</button>
+        </div>
+    </div>
+
+    <div class="site-footer">
+        <div>&copy; 2026 | Desenvolvido por João Carvalho | Painel de Administração</div>
+        <img src="imagens/Alecgroup.png" alt="Alecgroup Logo" class="footer-logo">
+    </div>
+
+    <div id="modal-admin" class="modal-overlay">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header" style="margin-bottom: 15px;"><h2 id="modal-admin-title" style="margin:0;"><i class="fa-solid fa-users" style="color:var(--jway-blue);"></i> Gestão de Utilizadores</h2><button class="modal-close" onclick="fecharModalAdmin()">✖</button></div>
+            <button id="modal-admin-add-btn" class="btn-primary" style="width: 100%; padding: 12px; margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="abrirModalAddUser()"><i class="fa-solid fa-user-plus"></i> Adicionar Novo Utilizador</button>
+            <div id="modal-admin-list" style="max-height: 50vh; overflow-y: auto; padding-right: 5px; display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+
+    <div id="modal-add-user" class="modal-overlay" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><h2 id="modal-user-title" style="margin:0;">👤 Novo Utilizador</h2><button class="modal-close" onclick="fecharModalUser()">✖</button></div>
+            <div style="overflow-y: auto; padding-right: 5px;">
+                <input type="hidden" id="edit-user-index" value="">
+                <div class="form-group"><label>Nome Completo</label><input type="text" id="add-user-nome" oninput="gerarUsername()" placeholder="Ex: João Carvalho"></div>
+				<div class="form-group">
+                    <label>Categoria na Empresa</label>
+                    <select id="add-user-cat" onchange="verificarAdmin()">
+                        <option value="Técnico de Desenho">Técnico de Desenho</option>
+                        <option value="Operador (Maquinista)">Operador (Maquinista)</option>
+                        <option value="Assistente de Produção">Assistente de Produção</option>
+                        <option value="Comercial">Comercial</option>
+                        <option value="Administrador">Administrador</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Nome de Utilizador</label><input type="text" id="add-user-username" oninput="pararAutoUsername()" placeholder="Ex: joao.carvalho"></div>
+                <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px; background: rgba(255, 71, 87, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(255, 71, 87, 0.3);">
+                    <input type="checkbox" id="add-user-isadmin" style="width: 20px; height: 20px; margin: 0; cursor: pointer;">
+                    <label style="color: white; margin: 0; cursor: pointer; text-transform: none;">Dar acesso total de Administrador</label>
+                </div>
+                <div id="pass-info-edit" style="margin-bottom: 15px; display: none;">
+                    <button class="btn-modern" style="background: rgba(255, 71, 87, 0.1); border: 1px dashed #ff4757; color: #ff4757; width: 100%; padding: 12px; font-size: 0.85rem;" onclick="redefinirPasswordModal()">🔄 Repor Password para "Jway2026"</button>
+                </div>
+                <button class="btn-primary" style="width: 100%; padding: 15px; margin-top: 10px; font-size: 1rem;" onclick="salvarUtilizador()">💾 Guardar Utilizador</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-tear" class="modal-overlay" style="z-index: 2010;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" style="margin-bottom: 15px;">
+                <h2 style="margin:0;"><i class="fa-solid fa-circle-plus" style="color: var(--color-producao);"></i> Novo Tear</h2>
+                <button class="modal-close" onclick="fecharModalAddTear()">✖</button>
+            </div>
+            <div class="form-group"><label>Identificação do Tear</label><input type="text" id="add-tear-id" placeholder="Ex: 1, 2A, etc..."></div>
+            <div class="form-group"><label>Modelo do Tear</label><select id="add-tear-tipo"></select></div>
+            <div class="form-group"><label>Polegadas</label><select id="add-tear-pol"></select></div>
+            <button class="btn-primary" style="width: 100%; padding: 15px; margin-top: 15px; font-size: 1rem;" onclick="salvarNovoTear()">💾 Criar Tear</button>
+        </div>
+    </div>
+
+    <div id="modal-caracteristicas" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="margin-bottom: 20px;"><h2 style="margin:0;"><i class="fa-solid fa-screwdriver-wrench" style="color:var(--jway-blue);"></i> Características</h2><button class="modal-close" onclick="fecharModalCaracteristicas()">✖</button></div>
+            <div class="form-group">
+                <label>O que queres editar?</label>
+                <select id="select-tipo-caracteristica" onchange="renderListaCaracteristicas()">
+                    <option value="tipos">⚙️ Modelos de Tear</option>
+                    <option value="polegadas">📏 Polegadas</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="input-nova-caracteristica" placeholder="Adicionar novo valor..." style="flex: 1; padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; outline: none;">
+                <button class="btn-primary" style="padding: 0 20px; font-size: 1.2rem;" onclick="adicionarCaracteristica()"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div id="lista-caracteristicas-container" style="max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px;"></div>
+        </div>
+    </div>
+
+    <div id="modal-edit-caracteristica" class="modal-overlay" style="z-index: 2020;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><h2 id="modal-edit-caract-title" style="margin:0;"><i class="fa-solid fa-pen"></i> Editar Valor</h2><button class="modal-close" onclick="fecharModalEditCaract()">✖</button></div>
+            <div class="form-group"><label id="modal-edit-caract-label">Novo Valor</label><input type="text" id="input-edit-caracteristica" style="width: 100%; box-sizing: border-box;"></div>
+            <input type="hidden" id="edit-caract-tipo" value=""><input type="hidden" id="edit-caract-index" value="">
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn-modern" style="flex: 1; background: rgba(255,255,255,0.1); border:none;" onclick="fecharModalEditCaract()">Cancelar</button>
+                <button class="btn-primary" style="flex: 1; padding: 12px; font-size: 1rem;" onclick="salvarEdicaoCaracteristica()">💾 Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-grelha-layout" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" style="margin-bottom: 15px;"><h2 style="margin:0;"><i class="fa-solid fa-table-cells-large" style="color:var(--jway-blue);"></i> Grelha & Layout</h2><button class="modal-close" onclick="fecharModalGrelha()">✖</button></div>
+            <p style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 20px;">Ajusta o aspeto do painel de produção e o número de espaços.</p>
+            <div class="form-group"><label>Máquinas por Fila (Colunas)</label><input type="number" id="config-cols" min="1" max="10"></div>
+            <div class="form-group"><label>Total de Espaços (Slots)</label><input type="number" id="config-slots" min="1" max="200"></div>
+            <div class="form-group"><label>Altura do Cartão Mínima (em pixels)</label><input type="number" id="config-alt" min="200" max="600"></div>
+            <button class="btn-primary" style="width:100%; padding:15px; margin-top:15px; font-size:1rem;" onclick="salvarConfigGrelha()">💾 Gravar Layout</button>
+        </div>
+    </div>
+
+    <div id="modal-alertas" class="modal-overlay">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 id="modal-alertas-title" style="margin:0; font-size: 1.3rem; color: white; display: flex; align-items: center; gap: 10px;">🔔 Notificações Pendentes</h2>
+                <button class="modal-close" style="width: auto; padding: 0; font-size: 1.5rem; margin: 0; line-height: 1;" onclick="fecharModalAlertas()">✖</button>
+            </div>
+            
+            <div id="historico-filters" style="display:none; gap: 15px; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; flex-wrap: wrap;"></div>
+
+            <div id="alert-list-container" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px; max-height: 50vh;"></div>
+            
+            <button id="btn-load-more-alerts" class="btn-modern" style="display: none; background: rgba(255,255,255,0.05); color: white; margin-top: 15px; border: 1px solid rgba(255,255,255,0.2);" onclick="carregarMaisAlertas()">Carregar mais 50 antigas...</button>
+        </div>
+    </div>
+
+    <div id="modal-acao-conclusao" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 10px; color: var(--jway-blue);"><i class="fa-solid fa-circle-check"></i></div>
+            <h2 style="color: white; margin: 0 0 15px 0; font-size: 1.2rem;">Máquina Concluída</h2>
+            <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.5; margin-bottom: 25px;">O que pretendes fazer com o Tear <strong id="conclusao-tear-id"></strong>?</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn-primary" style="padding: 12px; font-size: 1rem; background: #70AD47; border-color: #70AD47;" onclick="executarAcaoConclusao('puxar')"><i class="fa-solid fa-arrow-down"></i> Puxar 1ª Tarefa da Fila</button>
+                <button class="btn-modern" style="padding: 12px; font-size: 1rem; background: rgba(255,164,102,0.15); color: #ffa466; border: 1px solid rgba(255,164,102,0.3);" onclick="executarAcaoConclusao('parar')"><i class="fa-solid fa-circle-pause"></i> Colocar Tear PARADO</button>
+            </div>
+            <button class="btn-modern" style="margin-top: 15px; padding: 10px; background: transparent; border: none; color: rgba(255,255,255,0.4);" onclick="fecharAcaoConclusao()">Cancelar (Manter Pendente)</button>
+        </div>
+    </div>
+
+    <div id="modal-resposta-geral" class="modal-overlay" style="z-index: 2050;">
+        <div class="modal-content" style="max-width: 400px; border-color: #70AD47;">
+            <div class="modal-header">
+                <h2 style="color: #70AD47; margin: 0; font-size: 1.2rem;">✅ Responder ao Alerta Geral</h2>
+                <button class="modal-close" onclick="fecharRespostaGeral()" style="width: auto; padding: 0; font-size: 1.5rem; margin: 0; line-height: 1;">✖</button>
+            </div>
+            <div class="form-group">
+                <label style="color: white; opacity: 0.8; text-transform: none; font-weight: normal; margin-bottom: 10px; display: block;">Adicione uma nota ou resposta a esta notificação (Opcional):</label>
+                <textarea id="resposta-geral-texto" rows="4" placeholder="Escreva aqui a sua resposta/nota para o histórico..."></textarea>
+            </div>
+            <button class="btn-primary" style="background: #70AD47; width: 100%; padding: 12px; margin-top: 10px; font-size: 1rem;" onclick="confirmarRespostaGeral()">Confirmar e Fechar Alerta</button>
+        </div>
+    </div>
+
+    <div id="modal-justificacao" class="modal-overlay" style="z-index: 2050;">
+        <div class="modal-content" style="max-width: 400px; border-color: #ff4757;">
+            <div class="modal-header">
+                <h2 style="color: #ff4757; margin: 0; font-size: 1.2rem;">❌ Justificar Rejeição</h2>
+                <button class="modal-close" onclick="fecharJustificacao()" style="width: auto; padding: 0; font-size: 1.5rem; margin: 0; line-height: 1;">✖</button>
+            </div>
+            <div class="form-group">
+                <label style="color: white; opacity: 0.8; text-transform: none; font-weight: normal; margin-bottom: 10px; display: block;">Indique o motivo pelo qual esta notificação não é válida ou foi rejeitada:</label>
+                <textarea id="justificacao-texto" rows="4" placeholder="Escreva a justificação aqui..."></textarea>
+            </div>
+            <button class="btn-primary" style="background: #ff4757; width: 100%; padding: 12px; margin-top: 10px; font-size: 1rem;" onclick="confirmarRejeicao()">Confirmar Rejeição</button>
+        </div>
+    </div>
+
+    <div id="modal-prompt-device" class="modal-overlay" style="z-index: 3050;">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 style="margin: 0; font-size: 1.2rem; color: var(--jway-blue);"><i class="fa-solid fa-mobile-screen-button"></i> Nome do Aparelho</h2>
+                <button class="modal-close" onclick="fecharPromptDevice()" style="width: auto; padding: 0; font-size: 1.5rem; margin: 0; line-height: 1;">✖</button>
+            </div>
+            <div class="form-group">
+                <label style="color: white; opacity: 0.8; text-transform: none; font-weight: normal; margin-bottom: 10px; display: block;">Como queres identificar este aparelho para receber notificações? (Ex: PC Escritório, Telemóvel do João)</label>
+                <input type="text" id="prompt-device-name" placeholder="Nome do aparelho...">
+            </div>
+            <button class="btn-primary" style="width: 100%; padding: 12px; margin-top: 10px; font-size: 1rem;" onclick="confirmarPromptDevice()">Guardar e Ativar</button>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="modal-overlay" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 350px; border-color: #ff4757; text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 10px; color: #ff4757;"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h2 id="confirm-title" style="color: #ff4757; margin: 0 0 15px 0; font-size: 1.2rem;">Atenção</h2>
+            <p id="confirm-text" style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.5; margin-bottom: 25px;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button id="btn-cancelar-modal" class="btn-modern" style="flex: 1; background: rgba(255,255,255,0.1); border:none;" onclick="fecharConfirm()">Cancelar</button>
+                <button id="btn-confirm-action" class="btn-primary" style="flex: 1; background: #ff4757; border:none;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <button id="btnBackToTop" title="Voltar ao topo" onclick="scrollToTop()">
+        <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+  <script>
+        let db = { 
+            maquinas: {}, layout: [], utilizadores: [], tipos: [], polegadas: [], alertas: {}, config: { colunas: 4, totalSlots: 40, tamanhoCartao: 350 }
+        };
+        let acaoConfirmacao = null, indexAlvoConfirmacao = null, userEditadoManualmente = false;
+        let estadoAtivo = null;
+        let chartEstadoFabrica = null;
+
+        let historicoCompleto = [];
+        let historicoMostrado = 50;
+        let numeroDeAlertasAnterior = 0;
+        let filtroModalAlertaAdmin = 'pendentes'; 
+        let alertaTearFiltroAtivo = 'ALL'; 
+        
+        let alertaARejeitar = null;
+        let pendingConclusao = null; 
+        let alertaGeralAAceitar = null;
+        let pendingVapidToken = null; 
+
+        let renderTimeout = null;
+        function agendarRender(animarId = null) {
+            if(renderTimeout) clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => { 
+                try { renderizarFabrica(animarId); } catch(e) { console.error("Erro a desenhar fábrica:", e); } 
+            }, 100); 
+        }
+
+        window.onscroll = function() {
+            const btnTop = document.getElementById("btnBackToTop");
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) { btnTop.classList.add("show"); } else { btnTop.classList.remove("show"); }
+        };
+
+        function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                fecharModalAlertas(); fecharModalAdmin(); fecharModalUser();
+                fecharJustificacao(); fecharRespostaGeral(); fecharConfirm();
+                fecharAcaoConclusao(); fecharPromptDevice(); fecharModalCaracteristicas();
+                fecharModalGrelha(); fecharModalAddTear(); fecharModalEditCaract();
+            }
+        });
+
+        function mostrarToast(mensagem, tipo = 'sucesso') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            if(tipo === 'erro') toast.style.background = 'rgba(255, 71, 87, 0.95)';
+            toast.innerHTML = tipo === 'erro' ? `<i class="fa-solid fa-triangle-exclamation"></i> ${mensagem}` : `<i class="fa-solid fa-check-circle"></i> ${mensagem}`;
+            container.appendChild(toast);
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300); 
+            }, 3000);
+        }
+
+        function getNow() { const d = new Date(); const pad = n => n.toString().padStart(2, '0'); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+        function parseDatePT(dateStr) {
+            if (!dateStr) return 0;
+            try { const parts = dateStr.split(' '); const dateParts = parts[0].split('/'); const timeParts = parts[1] ? parts[1].split(':') : ['00', '00']; return new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]).getTime(); } catch (e) { return 0; }
+        }
+        function getCategoriaEmoji(cat) { 
+            if (cat === 'Técnico de Desenho') return '<i class="fa-solid fa-pen-ruler"></i>'; 
+            if (cat === 'Operador (Maquinista)') return '<i class="fa-solid fa-gears"></i>'; 
+            if (cat === 'Assistente de Produção') return '<i class="fa-solid fa-clipboard-list"></i>'; 
+            if (cat === 'Comercial') return '<i class="fa-solid fa-briefcase"></i>'; 
+            if (cat === 'Administrador') return '<i class="fa-solid fa-shield-halved"></i>'; 
+            return '<i class="fa-solid fa-user"></i>'; 
+        }
+
+        function getBadgeClassParaCategoria(cat) {
+            if (cat === 'Técnico de Desenho') return 'cat-desenho';
+            if (cat === 'Operador (Maquinista)') return 'cat-operador';
+            if (cat === 'Assistente de Produção') return 'cat-assistente';
+            if (cat === 'Comercial') return 'cat-comercial';
+            if (cat === 'Administrador') return 'cat-admin';
+            return '';
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const userName = localStorage.getItem('jwayUserNome') || 'Administrador';
+            const userCat = localStorage.getItem('jwayUserCat') || 'Administrador';
+            if (localStorage.getItem('jwayUserIsAdmin') !== 'true') window.location.replace('index.html');
+
+            document.getElementById('user-name-display').innerText = userName;
+            document.getElementById('user-cat-display').innerHTML = `${getCategoriaEmoji(userCat)} ${userCat}`;
+            
+            function updateClock() { document.getElementById('live-clock').innerText = `${new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()} ÀS ${new Date().toLocaleTimeString('pt-PT')}`; }
+            setInterval(updateClock, 1000); updateClock();
+            sincronizar();
+        });
+
+        function updateStatus(txt, cls) { document.getElementById('conn-status').innerText = txt; document.getElementById('conn-status').className = cls; }
+
+        function sincronizar() { 
+            updateStatus('A LIGAR...', 'status-work'); 
+            
+            jwayDB.ref('dados/config').on('value', snap => { if(snap.val()) { db.config = snap.val(); agendarRender(); } });
+            jwayDB.ref('dados/tipos').on('value', snap => { if(snap.val()) db.tipos = snap.val(); });
+            jwayDB.ref('dados/polegadas').on('value', snap => { if(snap.val()) db.polegadas = snap.val(); });
+            
+            jwayDB.ref('dados/layout').on('value', snap => { 
+                let rawLayout = snap.val();
+                let total = (db.config && db.config.totalSlots) ? parseInt(db.config.totalSlots) : 40;
+                if (isNaN(total)) total = 40;
+                
+                let layoutCorrigido = Array(total).fill(null);
+                
+                if (rawLayout) {
+                    if (Array.isArray(rawLayout)) { 
+                        rawLayout.forEach((val, i) => { if(i < total) layoutCorrigido[i] = val; }); 
+                    } else if (typeof rawLayout === 'object') { 
+                        Object.keys(rawLayout).forEach(key => { 
+                            let i = parseInt(key); 
+                            if(!isNaN(i) && i < total) layoutCorrigido[i] = rawLayout[key]; 
+                        }); 
+                    }
+                }
+                db.layout = layoutCorrigido; 
+                agendarRender();
+            });
+
+            jwayDB.ref('dados/utilizadores').on('value', snap => { 
+                let val = snap.val();
+                if (!val) {
+                    db.utilizadores = [];
+                } else if (Array.isArray(val)) {
+                    db.utilizadores = val;
+                } else if (typeof val === 'object') {
+                    let arr = [];
+                    Object.keys(val).forEach(k => { arr[parseInt(k)] = val[k]; });
+                    db.utilizadores = arr;
+                }
+                refreshListaUsers(); 
+            });
+
+            jwayDB.ref('dados/maquinas').on('value', snap => { 
+                db.maquinas = snap.val() || {}; 
+                updateStatus('LIGADO ✅', 'status-ok'); 
+                agendarRender();
+            });
+
+            jwayDB.ref('dados/alertas').on('value', snap => { 
+                db.alertas = snap.val() || {}; 
+                limparAlertasAntigos();
+                processarAlertas();
+                agendarRender(); 
+            });
+        }
+
+        async function saveGlobal() { try { await jwayDB.ref('dados/config').set(db.config); await jwayDB.ref('dados/layout').set(db.layout); mostrarToast("Grelha guardada com sucesso."); } catch (e) { mostrarToast("Erro ao gravar grelha.", "erro"); } }
+
+        function fazerLogout() { localStorage.clear(); window.location.replace('index.html'); }
+
+        // ==========================================
+        // SISTEMA DE ALERTAS
+        // ==========================================
+        function limparAlertasAntigos() {
+            if (!db.alertas) return;
+            const seisMesesMs = 180 * 24 * 60 * 60 * 1000;
+            const agora = Date.now();
+            Object.keys(db.alertas).forEach(key => {
+                const al = db.alertas[key];
+                if (al && al.status !== 'pendente' && al.resolvidoEm) {
+                    const dataRes = parseDatePT(al.resolvidoEm);
+                    if (dataRes > 0 && (agora - dataRes) > seisMesesMs) { jwayDB.ref(`dados/alertas/${key}`).remove(); }
+                }
+            });
+        }
+
+        function dispararNotificacoes(numAlertas) {
+            try { const som = new Audio('alerta.mp3'); som.play().catch(e => {}); } catch (e) {}
+            if (window.Notification && Notification.permission === "granted") {
+                new Notification("⚠️ JWAY: NOVO ALERTA", { body: `Existem ${numAlertas} ocorrência(s) a aguardar resolução na fábrica!`, icon: "imagens/jway48x48.ico" });
+            }
+        }
+
+        function processarAlertas() {
+            const alertasPendentes = Object.entries(db.alertas || {}).filter(([id, al]) => al && al.status === 'pendente');
+            const badge = document.getElementById('badge-alertas');
+            const numAlertas = alertasPendentes.length;
+
+            if (numAlertas > 0) { 
+                badge.innerText = numAlertas; badge.style.display = 'block'; document.title = `(${numAlertas}) 🔴 Jway - Admin`;
+                if (numAlertas > numeroDeAlertasAnterior) { dispararNotificacoes(numAlertas); }
+            } else { 
+                badge.style.display = 'none'; document.title = 'Jway - Painel de Administração';
+            }
+            numeroDeAlertasAnterior = numAlertas;
+
+            const modalAlertas = document.getElementById('modal-alertas');
+            if (modalAlertas && modalAlertas.style.display === 'flex') {
+                if(filtroModalAlertaAdmin === 'historico') { renderListaHistoricoAdmin(); } 
+                else { abrirModalAlertas('pendentes', alertaTearFiltroAtivo); }
+            }
+        }
+
+        function abrirModalAlertas(tipo = 'pendentes', tearFiltro = 'ALL') { 
+            filtroModalAlertaAdmin = tipo; alertaTearFiltroAtivo = tearFiltro;
+            const container = document.getElementById('alert-list-container');
+            const titulo = document.getElementById('modal-alertas-title'); 
+            const divFiltros = document.getElementById('historico-filters'); 
+            const btnLoadMore = document.getElementById('btn-load-more-alerts');
+            
+            let alertasArray = Object.entries(db.alertas || {}).filter(([id, al]) => al !== null).map(([id, al]) => ({id, ...al}));
+
+            if (tipo === 'pendentes') {
+                if(divFiltros) divFiltros.style.display = 'none';
+                if(btnLoadMore) btnLoadMore.style.display = 'none';
+                alertasArray = alertasArray.filter(al => al.status === 'pendente');
+                if (tearFiltro !== 'ALL') {
+                    alertasArray = alertasArray.filter(al => al.tear === tearFiltro);
+                    titulo.innerHTML = `<i class="fa-solid fa-bell" style="color: #ff4757;"></i> Notificações do Tear ${tearFiltro}`;
+                } else { titulo.innerHTML = '<i class="fa-solid fa-bell" style="color: #ff4757;"></i> Notificações Pendentes'; }
+                
+                if (alertasArray.length === 0) {
+                    let msgVazia = tearFiltro !== 'ALL' ? `O Tear ${tearFiltro} não tem notificações pendentes.` : `Sem notificações pendentes de momento.`;
+                    container.innerHTML = `<div style="text-align: center; padding: 40px; opacity: 0.5; font-style: italic;">${msgVazia}</div>`;
+                } else {
+                    container.innerHTML = alertasArray.map(al => {
+                        let titleDisplay = al.tear === 'GERAL' ? `<span style="color: #ff4757; -webkit-text-fill-color: #ff4757;"><i class="fa-solid fa-bullhorn"></i> ALERTA DA FÁBRICA</span>` : `<span style="color: white; -webkit-text-fill-color: white;"><i class="fa-solid fa-triangle-exclamation" style="color:#ff4757; -webkit-text-fill-color: #ff4757;"></i> Tear ${al.tear}</span>`;
+                        return `<div style="background: rgba(255, 71, 87, 0.1); border-left: 4px solid #ff4757; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-weight: 900; font-size: 1.1rem;">${titleDisplay}</span><span style="font-size: 0.85rem; color: #ccc;">${al.msg}</span><span style="font-size: 0.75rem; color: var(--jway-blue); font-weight: bold; margin-top: 2px;">👤 ${al.responsavel || 'Desconhecido'}</span><span style="font-size: 0.65rem; opacity: 0.5; font-weight: bold;">Registado às: ${al.hora}</span></div><div style="display: flex; gap: 8px;"><button class="btn-action btn-accept" onclick="resolverAlerta('${al.id}', 'aceite')">✅ Confirmar</button><button class="btn-action btn-reject" onclick="pedirJustificacao('${al.id}')">❌ Rejeitar</button></div></div>`;
+                    }).join('');
+                }
+            } else {
+                if(divFiltros) divFiltros.style.display = 'flex';
+                titulo.innerHTML = '<i class="fa-solid fa-clock-rotate-left" style="color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue);"></i> Histórico de Notificações';
+                let historicoBase = alertasArray.filter(al => al.status !== 'pendente');
+                const tearesUnicos = [...new Set(historicoBase.map(a => a.tear))].sort((a,b) => { if(a === 'GERAL') return -1; if(b === 'GERAL') return 1; return a - b; });
+                const usersUnicos = [...new Set(historicoBase.map(a => a.responsavel || 'Desconhecido'))].sort();
+                let tFilter = document.getElementById('filter-tear-admin') ? document.getElementById('filter-tear-admin').value : 'ALL';
+                let uFilter = document.getElementById('filter-user-admin') ? document.getElementById('filter-user-admin').value : 'ALL';
+
+                if(divFiltros) {
+                    divFiltros.innerHTML = `
+                        <select id="filter-tear-admin" style="padding: 14px; font-size: 0.95rem; font-weight: bold; border-radius: 8px; background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.2); flex:1; cursor: pointer; outline:none;" onchange="window.resetEFiltrarHistoricoAdmin()">
+                            <option value="ALL">- Todas as Ocorrências -</option>
+                            ${tearesUnicos.map(t => `<option value="${t}" ${tFilter===t?'selected':''}>${t === 'GERAL' ? '📢 Alertas Gerais' : 'Tear ' + t}</option>`).join('')}
+                        </select>
+                        <select id="filter-user-admin" style="padding: 14px; font-size: 0.95rem; font-weight: bold; border-radius: 8px; background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.2); flex:1; cursor: pointer; outline:none;" onchange="window.renderListaHistoricoAdmin()">
+                            <option value="ALL">- Todos os Utilizadores -</option>
+                            ${usersUnicos.map(u => `<option value="${u}" ${uFilter===u?'selected':''}>👤 ${u}</option>`).join('')}
+                        </select>`;
+                }
+                historicoMostrado = 50; window.renderListaHistoricoAdmin(historicoBase);
+            }
+            document.getElementById('modal-alertas').style.display = 'flex';
+        }
+
+        window.resetEFiltrarHistoricoAdmin = function() { historicoMostrado = 50; window.renderListaHistoricoAdmin(); };
+
+        window.renderListaHistoricoAdmin = function(preFiltrados = null) {
+            const container = document.getElementById('alert-list-container');
+            const btnLoadMore = document.getElementById('btn-load-more-alerts');
+            
+            historicoCompleto = preFiltrados || Object.entries(db.alertas || {}).filter(([id, al]) => al !== null).map(([id, al]) => ({id, ...al})).filter(al => al.status !== 'pendente');
+            
+            let tFilter = document.getElementById('filter-tear-admin') ? document.getElementById('filter-tear-admin').value : 'ALL';
+            let uFilter = document.getElementById('filter-user-admin') ? document.getElementById('filter-user-admin').value : 'ALL';
+
+            let arrayFiltrado = historicoCompleto;
+            if (tFilter !== 'ALL') arrayFiltrado = arrayFiltrado.filter(al => al.tear === tFilter);
+            if (uFilter !== 'ALL') arrayFiltrado = arrayFiltrado.filter(al => (al.responsavel || 'Desconhecido') === uFilter);
+            arrayFiltrado.sort((a, b) => parseDatePT(b.resolvidoEm) - parseDatePT(a.resolvidoEm));
+
+            const paginatedArray = arrayFiltrado.slice(0, historicoMostrado);
+            if (paginatedArray.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 40px; opacity: 0.5; font-style: italic;">Sem registos no histórico para os filtros selecionados.</div>`;
+                if(btnLoadMore) btnLoadMore.style.display = 'none';
+            } else {
+                container.innerHTML = paginatedArray.map(al => {
+                    let color = '#ff4757'; let badge = '⏳ EM ANÁLISE'; let bgJustificacao = '';
+                    if (al.status === 'aceite') { color = '#70AD47'; badge = '✅ ACEITE'; if (al.justificacao) { bgJustificacao = `<div style="background: rgba(112, 173, 71, 0.1); border-left: 2px solid #70AD47; padding: 8px; margin-top: 8px; border-radius: 4px; font-size: 0.75rem; color: #e2f0d9;"><strong>Resposta / Nota:</strong> <i>${al.justificacao}</i></div>`; } }
+                    if (al.status === 'rejeitado') { color = '#ff4d4d'; badge = '❌ REJEITADO'; if (al.justificacao) { bgJustificacao = `<div style="background: rgba(255, 77, 77, 0.1); border-left: 2px solid #ff4d4d; padding: 8px; margin-top: 8px; border-radius: 4px; font-size: 0.75rem; color: #ffcccc;"><strong>Motivo:</strong> <i>${al.justificacao}</i></div>`; } }
+                    let tearDisplay = al.tear === 'GERAL' ? '<span style="color: #ff4757; -webkit-text-fill-color: #ff4757;"><i class="fa-solid fa-bullhorn"></i> ALERTA DA FÁBRICA</span>' : `TEAR ${al.tear}`;
+                    let quemFechou = al.fechadoPor ? ` por <strong>${al.fechadoPor}</strong>` : '';
+                    return `<div style="background: rgba(255,255,255,0.05); border-left: 4px solid ${color}; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; text-align: left; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.02); border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); position:relative;"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;"><span style="font-weight: 900; color: white; font-size: 1.1rem; letter-spacing: -0.5px;">${tearDisplay}</span><div style="display:flex; align-items:center; gap: 10px;"><span style="color:${color}; -webkit-text-fill-color: ${color}; font-weight:bold; font-size:0.75rem;">${badge}</span><button onclick="abrirConfirmacao('Apagar Registo', 'Deseja apagar este registo?', 'remover_historico', '${al.id}')" style="background:none; border:none; color:rgba(255,255,255,0.3); font-size:1.2rem; cursor:pointer; padding:0; transition:0.2s;" title="Apagar Registo Permanente"><i class="fa-solid fa-trash"></i></button></div></div><span style="color: white; font-size:0.9rem; font-weight: bold; margin-bottom: 8px;">${al.msg}</span><span style="color:var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); font-size:0.75rem; font-weight: bold;">👤 Registado por: ${al.responsavel || 'Desconhecido'}</span><span style="color:rgba(255,255,255,0.4); font-size:0.65rem; font-weight: bold; margin-top: 6px;">📅 Criado a: ${al.hora}</span>${al.resolvidoEm ? `<span style="color:rgba(255,255,255,0.6); font-size:0.65rem; font-weight: bold; margin-top: 2px;">⌛ Fechado a: ${al.resolvidoEm}${quemFechou}</span>` : ''}${bgJustificacao}</div>`;
+                }).join('');
+                if(btnLoadMore) { btnLoadMore.style.display = arrayFiltrado.length > historicoMostrado ? 'block' : 'none'; }
+            }
+        }
+
+        function carregarMaisAlertas() { historicoMostrado += 50; window.renderListaHistoricoAdmin(); }
+        function fecharModalAlertas() { document.getElementById('modal-alertas').style.display = 'none'; }
+
+        function resolverAlerta(idAlerta, novoStatus, justificacao = '') {
+            if (db.alertas[idAlerta]) {
+                const tearId = db.alertas[idAlerta].tear; const alerta = db.alertas[idAlerta]; const msg = alerta.msg || '';
+                if (novoStatus === 'aceite' && tearId === 'GERAL') { pedirRespostaGeral(idAlerta); return; }
+                if (novoStatus === 'aceite' && tearId !== 'GERAL' && db.maquinas[tearId] && (msg.includes('Produção Concluída') || msg.includes('Amostra Concluída') || msg.includes('Manutenção Concluída'))) {
+                    pendingConclusao = { idAlerta, tearId }; document.getElementById('conclusao-tear-id').innerText = tearId; document.getElementById('modal-acao-conclusao').style.display = 'flex'; return; 
+                }
+                processarFechoAlerta(idAlerta, novoStatus, justificacao);
+            }
+        }
+
+        async function processarFechoAlerta(idAlerta, novoStatus, justificacao = '', acaoConclusao = null) {
+            const tearId = db.alertas[idAlerta].tear;
+            const userName = localStorage.getItem('jwayUserNome') || 'Administrador';
+            const updateAlertData = { status: novoStatus, resolvidoEm: getNow(), fechadoPor: userName };
+            if(justificacao) updateAlertData.justificacao = justificacao;
+            await jwayDB.ref(`dados/alertas/${idAlerta}`).update(updateAlertData);
+
+            if (novoStatus === 'aceite' && db.maquinas[tearId] && tearId !== 'GERAL') {
+                let maq = db.maquinas[tearId];
+                if (!maq.fila) maq.fila = Array(3).fill({tipo:'PARADO', cliente:'', modelo:'', desenhador:''});
+                const msg = db.alertas[idAlerta].msg || '';
+
+                if (acaoConclusao) {
+                    if (acaoConclusao === 'puxar') {
+                        const proximaTarefa = {...maq.fila[0]};
+                        maq.status = proximaTarefa.tipo; maq.cliente = proximaTarefa.cliente || ''; maq.modelo = proximaTarefa.modelo || ''; maq.desenhador = proximaTarefa.desenhador || '';
+                        maq.fila.splice(0, 1); maq.fila.push({ tipo: 'PARADO', cliente: '', modelo: '', desenhador: '' });
+                    } else if (acaoConclusao === 'parar') { maq.status = 'PARADO'; maq.cliente = ''; maq.modelo = ''; maq.desenhador = ''; }
+                } 
+                else if (msg.includes('Falta de Matéria-Prima')) { maq.status = 'PREPARAÇÃO PRODUÇÃO'; } 
+                else if (msg.includes('Autorizado para Produção')) { maq.status = 'PRODUÇÃO'; }
+                else if (msg.includes('Pedido de Amostra')) { const idx = maq.fila.findIndex(f => f.tipo === 'PARADO'); if (idx !== -1) { maq.fila[idx].tipo = 'DESENVOLVIMENTO AMOSTRAS'; maq.fila[idx].desenhador = db.alertas[idAlerta].responsavel || ''; } }
+                else if (msg.includes('Avaria Mecânica')) { let estadoAtual = { tipo: maq.status, cliente: maq.cliente || '', modelo: maq.modelo || '', desenhador: maq.desenhador || '' }; maq.fila.unshift(estadoAtual); if(maq.fila.length > 3) maq.fila.pop(); maq.status = 'AVARIADA'; }
+                else if (msg.includes('Pedido de Manutenção Preventiva')) { const idx = maq.fila.findIndex(f => f.tipo === 'PARADO'); if (idx !== -1) maq.fila[idx].tipo = 'MANUTENÇÃO'; }
+                
+                await jwayDB.ref(`dados/maquinas/${tearId}`).update({ status: maq.status, cliente: maq.cliente, modelo: maq.modelo, desenhador: maq.desenhador, fila: maq.fila, lastUpdate: getNow() });
+                agendarRender(tearId);
+            }
+            const temMaisPendentes = Object.values(db.alertas).some(a => a && a.status === 'pendente');
+            if(!temMaisPendentes && filtroModalAlertaAdmin === 'pendentes') { fecharModalAlertas(); } else if (document.getElementById('modal-alertas').style.display === 'flex') { abrirModalAlertas(filtroModalAlertaAdmin, alertaTearFiltroAtivo); }
+            mostrarToast("Notificação resolvida!");
+        }
+
+        function executarAcaoConclusao(acao) { if (pendingConclusao) { processarFechoAlerta(pendingConclusao.idAlerta, 'aceite', '', acao); fecharAcaoConclusao(); } }
+        function fecharAcaoConclusao() { pendingConclusao = null; document.getElementById('modal-acao-conclusao').style.display = 'none'; }
+        
+        function pedirRespostaGeral(idAlerta) { alertaGeralAAceitar = idAlerta; document.getElementById('resposta-geral-texto').value = ''; document.getElementById('modal-resposta-geral').style.display = 'flex'; }
+        function fecharRespostaGeral() { document.getElementById('modal-resposta-geral').style.display = 'none'; alertaGeralAAceitar = null; }
+        function confirmarRespostaGeral() { const texto = document.getElementById('resposta-geral-texto').value.trim(); if (alertaGeralAAceitar) { processarFechoAlerta(alertaGeralAAceitar, 'aceite', texto); fecharRespostaGeral(); } }
+        
+        function pedirJustificacao(idAlerta) { alertaARejeitar = idAlerta; document.getElementById('justificacao-texto').value = ''; document.getElementById('modal-justificacao').style.display = 'flex'; }
+        function fecharJustificacao() { document.getElementById('modal-justificacao').style.display = 'none'; alertaARejeitar = null; }
+        function confirmarRejeicao() { const texto = document.getElementById('justificacao-texto').value.trim(); if (!texto) { abrirAviso("Por favor, indique um motivo para rejeitar esta notificação."); return; } if (alertaARejeitar) { processarFechoAlerta(alertaARejeitar, 'rejeitado', texto); fecharJustificacao(); } }
+
+        // ==========================================
+        // GESTÃO DE MODAIS E CRUD ADMIN
+        // ==========================================
+        
+        function abrirAviso(msg) { 
+            document.getElementById('confirm-title').innerText = "Aviso";
+            document.getElementById('confirm-text').innerHTML = msg;
+            document.getElementById('btn-cancelar-modal').style.display = 'none';
+            document.getElementById('btn-confirm-action').innerText = "OK";
+            document.getElementById('btn-confirm-action').onclick = fecharConfirm;
+            document.getElementById('modal-confirm').style.display = 'flex';
+        }
+        function abrirConfirmacao(titulo, msg, acao, alvo) {
+            acaoConfirmacao = acao; indexAlvoConfirmacao = alvo;
+            document.getElementById('confirm-title').innerText = titulo;
+            document.getElementById('confirm-text').innerHTML = msg;
+            document.getElementById('btn-cancelar-modal').style.display = 'block';
+            document.getElementById('btn-confirm-action').innerText = "Confirmar";
+            document.getElementById('btn-confirm-action').onclick = processarConfirmacao;
+            document.getElementById('modal-confirm').style.display = 'flex';
+        }
+        function fecharConfirm() { document.getElementById('modal-confirm').style.display = 'none'; acaoConfirmacao = null; indexAlvoConfirmacao = null; }
+        
+        async function processarConfirmacao() {
+            if(acaoConfirmacao === 'remover_user') { await removerUser(indexAlvoConfirmacao); }
+            else if(acaoConfirmacao === 'remover_caract') { await removerCaracteristica(indexAlvoConfirmacao.tipo, indexAlvoConfirmacao.idx); }
+            else if(acaoConfirmacao === 'remover_tear') { 
+                db.layout[indexAlvoConfirmacao.idx] = null;
+                await jwayDB.ref('dados/layout').set(db.layout);
+                await jwayDB.ref(`dados/maquinas/${indexAlvoConfirmacao.id}`).remove();
+                mostrarToast("Tear removido com sucesso."); fecharEdit(indexAlvoConfirmacao.id); agendarRender();
+            }
+            else if(acaoConfirmacao === 'remover_historico') {
+                await jwayDB.ref(`dados/alertas/${indexAlvoConfirmacao}`).remove();
+                mostrarToast("Registo apagado.");
+                if(filtroModalAlertaAdmin === 'historico') {
+                    historicoCompleto = historicoCompleto.filter(a => a.id !== indexAlvoConfirmacao);
+                    renderListaHistoricoAdmin(historicoCompleto);
+                }
+            }
+            else if(acaoConfirmacao === 'puxar_tarefa') { await puxarFila(indexAlvoConfirmacao.id, indexAlvoConfirmacao.idx); }
+            else if(acaoConfirmacao === 'remover_tarefa_extra') {
+                db.maquinas[indexAlvoConfirmacao.id].fila.splice(indexAlvoConfirmacao.idx, 1);
+                await jwayDB.ref(`dados/maquinas/${indexAlvoConfirmacao.id}/fila`).set(db.maquinas[indexAlvoConfirmacao.id].fila);
+                mostrarToast("Tarefa removida."); agendarRender(indexAlvoConfirmacao.id);
+            }
+            fecharConfirm();
+        }
+
+        // --- GESTÃO DE UTILIZADORES COM CORES (BADGES) E ADMIN ---
+        function abrirModalAdmin() { document.getElementById('modal-admin').style.display = 'flex'; refreshListaUsers(); }
+        function fecharModalAdmin() { document.getElementById('modal-admin').style.display = 'none'; }
+        
+        function refreshListaUsers() {
+            const container = document.getElementById('modal-admin-list');
+            
+            let usersArray = [];
+            if(db.utilizadores && typeof db.utilizadores === 'object') {
+                Object.keys(db.utilizadores).forEach(key => {
+                    if(db.utilizadores[key] !== null) {
+                        let userCopy = { ...db.utilizadores[key], originalKey: key };
+                        usersArray.push(userCopy);
+                    }
+                });
+            }
+
+            if(usersArray.length === 0) { container.innerHTML = '<p style="text-align:center; color:#aaa;">Sem utilizadores registados.</p>'; return; }
+            
+            container.innerHTML = usersArray.map((u) => {
+                const valorUsername = u.utilizador || u.username; 
+                const displayUsername = valorUsername ? `@${valorUsername}` : '<span style="opacity:0.5; font-style:italic;">Sem username</span>';
+                const nomeSeguro = u.nome || 'Utilizador Desconhecido';
+                const catSegura = u.categoria || 'Sem Categoria';
+                
+                const cssBadge = getBadgeClassParaCategoria(catSegura);
+                const emoji = getCategoriaEmoji(catSegura);
+
+                const adminBadge = u.isAdmin ? `<span class="badge-cat cat-admin" style="margin-left: 8px;"><i class="fa-solid fa-shield-halved"></i> Admin</span>` : '';
+
+                return `
+                <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <div>
+                        <strong style="display:flex; align-items:center; color:white; margin-bottom: 4px; flex-wrap:wrap;">
+                            ${nomeSeguro} 
+                            <span style="font-size:0.75rem; font-weight:normal; opacity:0.7; margin-left: 5px;">${displayUsername}</span>
+                            ${adminBadge}
+                        </strong>
+                        <span class="badge-cat ${cssBadge}">${emoji} ${catSegura}</span>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="btn-icon" onclick="editarUser('${u.originalKey}')"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon" style="color:#ff4757;" onclick="abrirConfirmacao('Apagar Utilizador', 'Tem a certeza que quer apagar o utilizador ${nomeSeguro}?', 'remover_user', '${u.originalKey}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function abrirModalAddUser() {
+            document.getElementById('edit-user-index').value = '';
+            document.getElementById('add-user-nome').value = '';
+            document.getElementById('add-user-cat').value = 'Técnico de Desenho';
+            document.getElementById('add-user-username').value = '';
+            document.getElementById('add-user-isadmin').checked = false;
+            document.getElementById('pass-info-edit').style.display = 'none';
+            document.getElementById('modal-user-title').innerText = '👤 Novo Utilizador';
+            userEditadoManualmente = false;
+            document.getElementById('modal-add-user').style.display = 'flex';
+        }
+        function fecharModalUser() { document.getElementById('modal-add-user').style.display = 'none'; }
+        
+        function gerarUsername() {
+            if(userEditadoManualmente) return;
+            const nome = document.getElementById('add-user-nome').value.trim().toLowerCase();
+            if(!nome) { document.getElementById('add-user-username').value = ''; return; }
+            const partes = nome.split(' ');
+            if(partes.length > 1) { document.getElementById('add-user-username').value = partes[0] + '.' + partes[partes.length - 1]; }
+            else { document.getElementById('add-user-username').value = partes[0]; }
+        }
+        function pararAutoUsername() { userEditadoManualmente = true; }
+        
+        function verificarAdmin() {
+            const cat = document.getElementById('add-user-cat').value;
+            if(cat === 'Administrador') document.getElementById('add-user-isadmin').checked = true;
+        }
+
+        async function salvarUtilizador() {
+            const nome = document.getElementById('add-user-nome').value.trim();
+            const cat = document.getElementById('add-user-cat').value;
+            const inputUsername = document.getElementById('add-user-username').value.trim().toLowerCase();
+            const isAdmin = document.getElementById('add-user-isadmin').checked;
+            const idx = document.getElementById('edit-user-index').value;
+
+            if(!nome || !inputUsername) { abrirAviso("Por favor, preencha o Nome e o Username."); return; }
+
+            let usersArray = [];
+            if(db.utilizadores && typeof db.utilizadores === 'object') {
+                let maxKey = -1;
+                Object.keys(db.utilizadores).forEach(k => { let num = parseInt(k); if(num > maxKey) maxKey = num; });
+                for(let i = 0; i <= maxKey; i++) { usersArray.push(db.utilizadores[i] || null); }
+            }
+
+            if(idx !== '') {
+                usersArray[parseInt(idx)] = { ...usersArray[parseInt(idx)], nome, categoria: cat, utilizador: inputUsername, isAdmin };
+                mostrarToast("Utilizador atualizado com sucesso!");
+            } else {
+                if(usersArray.some(u => u && (u.utilizador === inputUsername || u.username === inputUsername))) { abrirAviso("Este Nome de Utilizador já existe."); return; }
+                usersArray.push({ nome, categoria: cat, utilizador: inputUsername, isAdmin, password: 'Jway2026' }); 
+                mostrarToast("Utilizador criado com sucesso!");
+            }
+            await jwayDB.ref('dados/utilizadores').set(usersArray);
+            fecharModalUser(); refreshListaUsers();
+        }
+
+        function editarUser(originalKey) {
+            const u = db.utilizadores[originalKey];
+            if(!u) return;
+            document.getElementById('edit-user-index').value = originalKey;
+            document.getElementById('add-user-nome').value = u.nome || '';
+            document.getElementById('add-user-cat').value = u.categoria || 'Técnico de Desenho';
+            document.getElementById('add-user-username').value = u.utilizador || u.username || ''; 
+            document.getElementById('add-user-isadmin').checked = u.isAdmin || false;
+            document.getElementById('modal-user-title').innerText = '✏️ Editar Utilizador';
+            document.getElementById('pass-info-edit').style.display = 'block';
+            userEditadoManualmente = true;
+            document.getElementById('modal-add-user').style.display = 'flex';
+        }
+
+        async function removerUser(originalKey) {
+            await jwayDB.ref(`dados/utilizadores/${originalKey}`).set(null);
+            mostrarToast("Utilizador removido.");
+        }
+
+        async function redefinirPasswordModal() {
+            const originalKey = document.getElementById('edit-user-index').value;
+            if(originalKey !== '') {
+                await jwayDB.ref(`dados/utilizadores/${originalKey}/password`).set('Jway2026');
+                mostrarToast("A password foi reposta para 'Jway2026'");
+            }
+        }
+
+        // --- GESTÃO DE CARACTERÍSTICAS (Modelos e Polegadas) ---
+        function abrirModalCaracteristicas() { document.getElementById('modal-caracteristicas').style.display = 'flex'; renderListaCaracteristicas(); }
+        function fecharModalCaracteristicas() { document.getElementById('modal-caracteristicas').style.display = 'none'; }
+        
+        function renderListaCaracteristicas() {
+            const tipo = document.getElementById('select-tipo-caracteristica').value;
+            const container = document.getElementById('lista-caracteristicas-container');
+            const lista = db[tipo] || [];
+            if(lista.length === 0) { container.innerHTML = '<p style="text-align:center; color:#aaa;">Sem registos.</p>'; return; }
+            container.innerHTML = lista.map((val, i) => `
+                <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:white; font-weight:bold;">${val}</span>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-icon" onclick="abrirEdicaoCaracteristica('${tipo}', ${i})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="btn-icon" style="color:#ff4757;" onclick="abrirConfirmacao('Apagar', 'Apagar este valor da base de dados?', 'remover_caract', {tipo: '${tipo}', idx: ${i}})"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function adicionarCaracteristica() {
+            const tipo = document.getElementById('select-tipo-caracteristica').value;
+            const input = document.getElementById('input-nova-caracteristica');
+            const val = input.value.trim();
+            if(!val) return;
+            if(!db[tipo]) db[tipo] = [];
+            db[tipo].push(val);
+            await jwayDB.ref(`dados/${tipo}`).set(db[tipo]);
+            input.value = ''; mostrarToast("Adicionado com sucesso."); renderListaCaracteristicas();
+        }
+
+        async function removerCaracteristica(tipo, idx) {
+            db[tipo].splice(idx, 1);
+            await jwayDB.ref(`dados/${tipo}`).set(db[tipo]);
+            mostrarToast("Valor removido."); renderListaCaracteristicas();
+        }
+
+        function abrirEdicaoCaracteristica(tipo, idx) {
+            document.getElementById('edit-caract-tipo').value = tipo;
+            document.getElementById('edit-caract-index').value = idx;
+            document.getElementById('input-edit-caracteristica').value = db[tipo][idx];
+            document.getElementById('modal-edit-caracteristica').style.display = 'flex';
+        }
+        function fecharModalEditCaract() { document.getElementById('modal-edit-caracteristica').style.display = 'none'; }
+        
+        async function salvarEdicaoCaracteristica() {
+            const tipo = document.getElementById('edit-caract-tipo').value;
+            const idx = document.getElementById('edit-caract-index').value;
+            const val = document.getElementById('input-edit-caracteristica').value.trim();
+            if(!val) return;
+            db[tipo][idx] = val;
+            await jwayDB.ref(`dados/${tipo}`).set(db[tipo]);
+            fecharModalEditCaract(); mostrarToast("Valor atualizado!"); renderListaCaracteristicas();
+        }
+
+        // --- GESTÃO DE GRELHA E LAYOUT ---
+        function abrirModalGrelha() {
+            document.getElementById('config-cols').value = db.config.colunas || 4;
+            document.getElementById('config-slots').value = db.config.totalSlots || 40;
+            document.getElementById('config-alt').value = db.config.tamanhoCartao || 350;
+            document.getElementById('modal-grelha-layout').style.display = 'flex';
+        }
+        function fecharModalGrelha() { document.getElementById('modal-grelha-layout').style.display = 'none'; }
+        
+        async function salvarConfigGrelha() {
+            db.config.colunas = parseInt(document.getElementById('config-cols').value);
+            db.config.totalSlots = parseInt(document.getElementById('config-slots').value);
+            db.config.tamanhoCartao = parseInt(document.getElementById('config-alt').value);
+            
+            let newLayout = Array(db.config.totalSlots).fill(null);
+            if(db.layout) { db.layout.forEach((val, i) => { if(i < db.config.totalSlots) newLayout[i] = val; }); }
+            db.layout = newLayout;
+
+            await jwayDB.ref('dados/config').set(db.config);
+            await jwayDB.ref('dados/layout').set(db.layout);
+            fecharModalGrelha(); mostrarToast("Layout da grelha atualizado!"); agendarRender();
+        }
+
+        // --- GESTÃO DE TEARES ---
+        function abrirModalAddTear() {
+            document.getElementById('add-tear-id').value = '';
+            const selTipo = document.getElementById('add-tear-tipo');
+            const selPol = document.getElementById('add-tear-pol');
+            selTipo.innerHTML = '<option value="">- Selecione Modelo -</option>' + (db.tipos||[]).map(t => `<option value="${t}">${t}</option>`).join('');
+            selPol.innerHTML = '<option value="">- Selecione Polegadas -</option>' + (db.polegadas||[]).map(p => `<option value="${p}">${p}</option>`).join('');
+            document.getElementById('modal-add-tear').style.display = 'flex';
+        }
+        function fecharModalAddTear() { document.getElementById('modal-add-tear').style.display = 'none'; }
+        
+        async function salvarNovoTear() {
+            const id = document.getElementById('add-tear-id').value.trim().toUpperCase();
+            const tipo = document.getElementById('add-tear-tipo').value;
+            const pol = document.getElementById('add-tear-pol').value;
+            
+            if(!id) { abrirAviso("Tem de introduzir a identificação do Tear."); return; }
+            if(db.maquinas && db.maquinas[id]) { abrirAviso(`Já existe uma máquina com a identificação ${id}!`); return; }
+
+            const emptyIdx = (db.layout || []).findIndex(val => val === null || val === '');
+            if(emptyIdx === -1) { abrirAviso("Não há espaços vazios na grelha! Vá a Grelha & Layout e aumente o 'Total de Espaços'."); return; }
+
+            const novaMaq = { status: 'PARADO', tipo: tipo, pol: pol, cliente: '', modelo: '', desenhador: '', fila: Array(3).fill({tipo:'PARADO', cliente:'', modelo:'', desenhador:''}), lastUpdate: getNow() };
+            
+            db.layout[emptyIdx] = id;
+            await jwayDB.ref(`dados/maquinas/${id}`).set(novaMaq);
+            await jwayDB.ref('dados/layout').set(db.layout);
+            
+            fecharModalAddTear(); mostrarToast(`Tear ${id} adicionado com sucesso!`); agendarRender();
+        }
+
+        // ==========================================
+        // LÓGICA DA GRELHA (Funções Adicionadas)
+        // ==========================================
+        function toggleMenuNav(e) { e.stopPropagation(); document.getElementById('menu-nav-dropdown').classList.toggle('show'); }
+        window.addEventListener('click', function(e) { const menu = document.getElementById('menu-nav-dropdown'); if (menu && menu.classList.contains('show') && !menu.contains(e.target)) { menu.classList.remove('show'); } });
+
+        async function gravarConfig(id) { await jwayDB.ref(`dados/maquinas/${id}`).update({ tipo: document.getElementById(`edit-tipo-${id}`).value, pol: document.getElementById(`edit-pol-${id}`).value, lastUpdate: getNow() }); toggleEdit(id); mostrarToast("Configuração guardada!"); }
+        async function updateFull(id, field, val) { await jwayDB.ref(`dados/maquinas/${id}`).update({ [field]: val, lastUpdate: getNow() }); mostrarToast("Atualizado", "sucesso"); agendarRender(id); }
+        async function updateFila(id, idx, field, val) { if(!db.maquinas[id].fila) db.maquinas[id].fila = Array(3).fill({tipo:'PARADO', cliente:'', modelo:'', desenhador:''}); db.maquinas[id].fila[idx][field] = val; await jwayDB.ref(`dados/maquinas/${id}/fila`).set(db.maquinas[id].fila); mostrarToast("Fila Atualizada", "sucesso"); agendarRender(id); }
+        
+        function confirmarPuxarFila(id, idx) { abrirConfirmacao("Puxar Tarefa", "Tens a certeza que queres passar este planeamento para o estado atual da máquina?", 'puxar_tarefa', { id: id, idx: idx }); }
+        async function puxarFila(id, idx) { let filaArray = Array.isArray(db.maquinas[id].fila) ? db.maquinas[id].fila : Object.values(db.maquinas[id].fila || {}); const item = {...filaArray[idx]}; db.maquinas[id].status = item.tipo; db.maquinas[id].cliente = item.cliente || ''; db.maquinas[id].modelo = item.modelo || ''; db.maquinas[id].desenhador = item.desenhador || ''; filaArray.splice(idx, 1); while(filaArray.length < 3) { filaArray.push({ tipo: 'PARADO', cliente: '', modelo: '', desenhador: '' }); } db.maquinas[id].fila = filaArray; await jwayDB.ref(`dados/maquinas/${id}`).update({ status: db.maquinas[id].status, cliente: db.maquinas[id].cliente, modelo: db.maquinas[id].modelo, desenhador: db.maquinas[id].desenhador, fila: db.maquinas[id].fila, lastUpdate: getNow() }); mostrarToast("Tarefa Iniciada", "sucesso"); agendarRender(id); }
+        async function subirFila(id, idx) { if (idx > 0) { let filaArray = Array.isArray(db.maquinas[id].fila) ? db.maquinas[id].fila : Object.values(db.maquinas[id].fila || {}); const temp = filaArray[idx]; filaArray[idx] = filaArray[idx - 1]; filaArray[idx - 1] = temp; db.maquinas[id].fila = filaArray; await jwayDB.ref(`dados/maquinas/${id}`).update({ fila: db.maquinas[id].fila, lastUpdate: getNow() }); agendarRender(id); } }
+        async function descerFila(id, idx) { let filaArray = Array.isArray(db.maquinas[id].fila) ? db.maquinas[id].fila : Object.values(db.maquinas[id].fila || {}); if (idx < filaArray.length - 1) { const temp = filaArray[idx]; filaArray[idx] = filaArray[idx + 1]; filaArray[idx + 1] = temp; db.maquinas[id].fila = filaArray; await jwayDB.ref(`dados/maquinas/${id}`).update({ fila: db.maquinas[id].fila, lastUpdate: getNow() }); agendarRender(id); } }
+        async function adicionarTarefaFila(id) { if(!db.maquinas[id].fila) db.maquinas[id].fila = []; db.maquinas[id].fila.push({ tipo: 'PARADO', cliente: '', modelo: '', desenhador: '' }); await jwayDB.ref(`dados/maquinas/${id}/fila`).set(db.maquinas[id].fila); agendarRender(id); }
+        function removerTarefaFila(id, idx) { if(!db.maquinas[id].fila) return; abrirConfirmacao("Remover Tarefa", "Tem a certeza que pretende remover esta tarefa extra da fila?", 'remover_tarefa_extra', { id: id, idx: idx }); }
+        function toggleEdit(id) { const el = document.getElementById(`edit-${id}`); if(el) { el.style.display = el.style.display === 'none' ? 'flex' : 'none'; } }
+        function fecharEdit(id) { const el = document.getElementById(`edit-${id}`); if(el) el.style.display = 'none'; }
+
+        // ==========================================
+        // RENDER DE FILA E ÍCONES (Funções Restabelecidas)
+        // ==========================================
+        function renderFila(id, fila, tecnicos) {
+            let filaArray = Array.isArray(fila) ? fila : Object.values(fila || {});
+            while(filaArray.length < 3) { filaArray.push({tipo:'PARADO', cliente:'', modelo:'', desenhador:''}); }
+
+            return filaArray.map((item, fIdx) => {
+                if(!item) item = {tipo:'PARADO', cliente:'', modelo:'', desenhador:''};
+                const tipo = item.tipo || 'PARADO';
+                const tipoClass = tipo.toLowerCase().replace(/ /g, "_").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                
+                let bottomHtml = '';
+                if (tipo === 'DESENVOLVIMENTO AMOSTRAS') { bottomHtml = `<select class="card-input-base theme-light-text" onchange="updateFila('${id}', ${fIdx}, 'desenhador', this.value)"><option value="">Técnico...</option>${tecnicos.map(d => `<option value="${d}" ${item.desenhador===d?'selected':''}>${d}</option>`).join('')}</select>`; } 
+                else if (tipo !== 'MANUTENÇÃO' && tipo !== 'PARADO' && tipo !== 'AVARIADA') { bottomHtml = `<input class="card-input-base theme-light-text" placeholder="Cliente" value="${item.cliente || ''}" onchange="updateFila('${id}', ${fIdx}, 'cliente', this.value)"><input class="card-input-base theme-light-text" placeholder="Artigo" value="${item.modelo || ''}" onchange="updateFila('${id}', ${fIdx}, 'modelo', this.value)">`; } 
+                
+                let btnAction = '<div class="action-group">';
+                if (fIdx === 0) { btnAction += `<button class="btn-up btn-up-green" onclick="confirmarPuxarFila('${id}', ${fIdx})" title="Puxar para Máquina">▲</button>`; if(filaArray.length > 1) btnAction += `<button class="btn-up" onclick="descerFila('${id}', ${fIdx})">▼</button>`; } else if (fIdx === filaArray.length - 1) { btnAction += `<button class="btn-up" onclick="subirFila('${id}', ${fIdx})">▲</button>`; } else { btnAction += `<button class="btn-up" onclick="subirFila('${id}', ${fIdx})">▲</button><button class="btn-up" onclick="descerFila('${id}', ${fIdx})">▼</button>`; }
+                if (filaArray.length > 3 && fIdx >= 3) { btnAction += `<button class="btn-up" style="color: #ff4757; border-color: rgba(255, 71, 87, 0.3); background: rgba(255, 71, 87, 0.1);" onclick="removerTarefaFila('${id}', ${fIdx})" title="Eliminar Tarefa"><i class="fa-solid fa-xmark"></i></button>`; }
+                btnAction += '</div>';
+                
+                return `<div class="plan-row row-${tipoClass}"><div style="display:flex; justify-content:space-between; align-items:center; gap:5px; margin-bottom: 4px;"><span style="font-weight: 900; opacity: 0.5; font-size: 0.75rem; width: 10px; text-align: center;">${fIdx + 1}</span><select class="card-input-base theme-light-text" style="margin-bottom:0; flex-grow:1; font-size:0.55rem; padding:2px 18px 2px 4px !important;" onchange="updateFila('${id}', ${fIdx}, 'tipo', this.value)"><option value="PREPARAÇÃO PRODUÇÃO" ${tipo==='PREPARAÇÃO PRODUÇÃO'?'selected':''}>PREPARAÇÃO PRODUÇÃO</option><option value="PRODUÇÃO" ${tipo==='PRODUÇÃO'?'selected':''}>PRODUÇÃO</option><option value="DESENVOLVIMENTO AMOSTRAS" ${tipo==='DESENVOLVIMENTO AMOSTRAS'?'selected':''}>DESENVOLVIMENTO AMOSTRAS</option><option value="MANUTENÇÃO" ${tipo==='MANUTENÇÃO'?'selected':''}>MANUTENÇÃO</option><option value="PARADO" ${tipo==='PARADO'?'selected':''}>PARADO</option></select>${btnAction}</div><div class="plan-row-bottom">${bottomHtml}</div></div>`;
+            }).join('');
+        }
+
+        function getIconObj(status) {
+            switch(status) {
+                case 'PRODUÇÃO': return { class: 'fa-solid fa-gear fa-spin', color: '#8be05e' }; 
+                case 'PREPARAÇÃO PRODUÇÃO': return { class: 'fa-solid fa-screwdriver-wrench fa-beat', color: '#ffe666' }; 
+                case 'DESENVOLVIMENTO AMOSTRAS': return { class: 'fa-brands fa-laravel fa-fade', color: '#8aa6c9' }; 
+                case 'MANUTENÇÃO': return { class: 'fa-solid fa-wrench fa-shake', color: '#ff6666' }; 
+                case 'PARADO': return { class: 'fa-solid fa-circle-pause fa-fade', color: '#ffa466' }; 
+                case 'AVARIADA': return { class: 'fa-solid fa-ban fa-fade', color: '#8ba6c1' }; 
+                default: return { class: '', color: '' };
+            }
+        }
+
+        let draggedIndex = null;
+        function enableDrag(e) { e.target.closest('.tear-card').setAttribute('draggable', 'true'); }
+        function disableDrag(e) { e.target.closest('.tear-card').setAttribute('draggable', 'false'); }
+        function dragStart(e, index) { draggedIndex = index; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => { e.target.style.opacity = '0.5'; }, 0); }
+        async function drop(e, dropIndex) {
+            e.preventDefault();
+            if(draggedIndex === null || draggedIndex === dropIndex) return;
+            const temp = db.layout[draggedIndex];
+            db.layout[draggedIndex] = db.layout[dropIndex];
+            db.layout[dropIndex] = temp;
+            await jwayDB.ref('dados/layout').set(db.layout);
+            mostrarToast("Grelha reordenada!"); agendarRender();
+        }
+
+        function limparFiltrosGerais() {
+            document.getElementById('search-input').value = ''; estadoAtivo = null; document.getElementById('btn-clear-filters').style.display = 'none';
+            aplicarFiltroEstado(); filtrarGrelha('');
+        }
+
+        function gerirBotaoLimparFiltros(isAtivo) { const btnClear = document.getElementById('btn-clear-filters'); if (isAtivo) { btnClear.style.display = 'block'; } else { btnClear.style.display = 'none'; } }
+
+        function filtrarGrelha(termo) {
+            estadoAtivo = null; document.querySelectorAll('.stat-card').forEach(c => { c.style.opacity = '1'; c.style.transform = 'scale(1)'; });
+            const query = termo.toLowerCase().trim(); const slots = document.querySelectorAll('#mainGrid .slot');
+            gerirBotaoLimparFiltros(query.length > 0);
+
+            (db.layout || []).forEach((idTear, index) => {
+                const slotEl = slots[index]; if (!slotEl) return; slotEl.style.order = ''; 
+                if (!idTear || !db.maquinas[idTear]) { slotEl.style.display = query ? 'none' : ''; return; }
+                const m = db.maquinas[idTear]; let textoPesquisa = `${idTear} ${m.cliente || ''} ${m.modelo || ''} ${m.desenhador || ''} ${m.status || ''} ${m.tipo || ''}`.toLowerCase();
+                if (m.fila) { m.fila.forEach(f => { if (f && f.tipo !== 'PARADO') { textoPesquisa += ` ${f.cliente || ''} ${f.modelo || ''} ${f.desenhador || ''} ${f.tipo || ''}`.toLowerCase(); } }); }
+
+                if (textoPesquisa.includes(query)) { slotEl.style.display = ''; } else { slotEl.style.display = 'none'; }
+            });
+        }
+
+        function filtrarPorEstado(estado) {
+            const searchInput = document.getElementById('search-input');
+            if (estadoAtivo === estado) { estadoAtivo = null; if (searchInput && searchInput.value) { filtrarGrelha(searchInput.value); } else { filtrarGrelha(''); gerirBotaoLimparFiltros(false); } return; }
+            estadoAtivo = estado; if (searchInput) searchInput.value = ''; gerirBotaoLimparFiltros(true); aplicarFiltroEstado();
+        }
+
+        function aplicarFiltroEstado() {
+            const slots = document.querySelectorAll('#mainGrid .slot');
+            document.querySelectorAll('.stat-card').forEach(c => { if(c.dataset.estado) { if (c.dataset.estado === estadoAtivo) { c.style.opacity = '1'; c.style.transform = 'scale(1.05)'; } else { c.style.opacity = '0.3'; c.style.transform = 'scale(1)'; } } });
+
+            let maquinasFiltradas = []; 
+            (db.layout || []).forEach((idTear, index) => { if (idTear && db.maquinas[idTear] && db.maquinas[idTear].status === estadoAtivo) maquinasFiltradas.push({ id: idTear, index: index }); });
+            maquinasFiltradas.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true, sensitivity: 'base'}));
+            let ordemMap = {}; maquinasFiltradas.forEach((item, sortedIdx) => { ordemMap[item.index] = sortedIdx + 1; });
+
+            slots.forEach((slotEl, index) => { if (!slotEl) return; if (ordemMap[index] !== undefined || !estadoAtivo) { slotEl.style.display = ''; slotEl.style.order = ordemMap[index] || ''; } else { slotEl.style.display = 'none'; slotEl.style.order = ''; } });
+        }
+
+        function buildTooltipHtml(textoBase, destaque, corCssVar, listaMaquinas, fontAwesomeIcon) {
+            let htmlLista = listaMaquinas.length > 0 ? listaMaquinas.map(m => `<div style="display: flex; align-items: center; gap: 8px; padding: 2px 0;"><i class="${fontAwesomeIcon}" style="color: rgba(255,255,255,0.5); font-size: 0.8rem; width: 14px; text-align: center;"></i><span>Tear ${m.id} <span style="opacity: 0.6; font-size: 0.7rem;">${m.pol ? `(${String(m.pol).replace(/"/g,'')}")` : ''}</span></span>${m.fila ? '<span style="margin-left:auto; background:rgba(255,71,87,0.15); color:#ff4757; font-size:0.55rem; padding: 2px 5px; border-radius:4px; font-weight:800; border: 1px solid rgba(255,71,87,0.3);">FILA</span>' : ''}</div>`).join('') : '<div style="opacity: 0.5; font-style: italic;">Nenhuma máquina neste estado.</div>';
+            return `<div class="custom-tooltip"><div class="tooltip-title">${textoBase} <span style="color: var(--color-${corCssVar}); -webkit-text-fill-color: var(--color-${corCssVar});">${destaque}</span></div><div class="tooltip-divider"></div><div class="tooltip-list">${htmlLista}</div></div>`;
+        }
+
+        function renderizarEstatisticas() {
+            const dash = document.getElementById('stats-dashboard'); const techDash = document.getElementById('tech-dashboard');
+            let maquinasPorEstado = { 'PRODUÇÃO': [], 'PREPARAÇÃO PRODUÇÃO': [], 'DESENVOLVIMENTO AMOSTRAS': [], 'MANUTENÇÃO': [], 'PARADO': [], 'AVARIADA': [] }; let techCount = {}; let techMachines = {};
+
+            Object.keys(db.maquinas || {}).forEach(idTear => {
+                const m = db.maquinas[idTear]; 
+                if (!m) return;
+                
+                const status = m.status || 'PARADO';
+                if(maquinasPorEstado[status] !== undefined) { maquinasPorEstado[status].push({ id: idTear, pol: m.pol }); }
+                if (status === 'DESENVOLVIMENTO AMOSTRAS' && m.desenhador) { if(!techCount[m.desenhador]) { techCount[m.desenhador] = 0; techMachines[m.desenhador] = []; } techCount[m.desenhador]++; if(!techMachines[m.desenhador].some(t => t.id === idTear && !t.fila)) { techMachines[m.desenhador].push({ id: idTear, pol: m.pol, fila: false }); } }
+                if(m.fila) { m.fila.forEach((f) => { if (f && f.tipo === 'DESENVOLVIMENTO AMOSTRAS' && f.desenhador) { if(!techCount[f.desenhador]) { techCount[f.desenhador] = 0; techMachines[f.desenhador] = []; } techCount[f.desenhador]++; if(!techMachines[f.desenhador].some(t => t.id === idTear && t.fila)) { techMachines[f.desenhador].push({ id: idTear, pol: m.pol, fila: true }); } } }); }
+            });
+
+            for(let estado in maquinasPorEstado) { maquinasPorEstado[estado].sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true, sensitivity: 'base'})); }
+            for(let tech in techMachines) { techMachines[tech].sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true, sensitivity: 'base'})); }
+
+            dash.innerHTML = `
+                <div class="stat-card" data-estado="PRODUÇÃO" style="border-bottom: 4px solid var(--color-producao);" onclick="filtrarPorEstado('PRODUÇÃO')"><span class="stat-value" style="color: var(--color-producao); -webkit-text-fill-color: var(--color-producao);">${maquinasPorEstado['PRODUÇÃO'].length}</span><span class="stat-label">Produção</span>${buildTooltipHtml('Teares em', 'PRODUÇÃO', 'producao', maquinasPorEstado['PRODUÇÃO'], 'fa-solid fa-gear')}</div>
+                <div class="stat-card" data-estado="PREPARAÇÃO PRODUÇÃO" style="border-bottom: 4px solid var(--color-preparacao);" onclick="filtrarPorEstado('PREPARAÇÃO PRODUÇÃO')"><span class="stat-value" style="color: var(--color-preparacao); -webkit-text-fill-color: var(--color-preparacao);">${maquinasPorEstado['PREPARAÇÃO PRODUÇÃO'].length}</span><span class="stat-label">Preparação</span>${buildTooltipHtml('Teares em', 'PREPARAÇÃO', 'preparacao', maquinasPorEstado['PREPARAÇÃO PRODUÇÃO'], 'fa-solid fa-screwdriver-wrench')}</div>
+                <div class="stat-card" data-estado="DESENVOLVIMENTO AMOSTRAS" style="border-bottom: 4px solid var(--color-amostras);" onclick="filtrarPorEstado('DESENVOLVIMENTO AMOSTRAS')"><span class="stat-value" style="color: var(--color-amostras); -webkit-text-fill-color: var(--color-amostras);">${maquinasPorEstado['DESENVOLVIMENTO AMOSTRAS'].length}</span><span class="stat-label">Amostras</span>${buildTooltipHtml('Teares em', 'AMOSTRAS', 'amostras', maquinasPorEstado['DESENVOLVIMENTO AMOSTRAS'], 'fa-brands fa-laravel')}</div>
+                <div class="stat-card" data-estado="MANUTENÇÃO" style="border-bottom: 4px solid var(--color-manutencao);" onclick="filtrarPorEstado('MANUTENÇÃO')"><span class="stat-value" style="color: var(--color-manutencao); -webkit-text-fill-color: var(--color-manutencao);">${maquinasPorEstado['MANUTENÇÃO'].length}</span><span class="stat-label">Manutenção</span>${buildTooltipHtml('Teares em', 'MANUTENÇÃO', 'manutencao', maquinasPorEstado['MANUTENÇÃO'], 'fa-solid fa-wrench')}</div>
+                <div class="stat-card" data-estado="PARADO" style="border-bottom: 4px solid var(--color-parado);" onclick="filtrarPorEstado('PARADO')"><span class="stat-value" style="color: var(--color-parado); -webkit-text-fill-color: var(--color-parado);">${maquinasPorEstado['PARADO'].length}</span><span class="stat-label">Parados</span>${buildTooltipHtml('Teares', 'PARADOS', 'parado', maquinasPorEstado['PARADO'], 'fa-solid fa-circle-pause')}</div>
+                <div class="stat-card" data-estado="AVARIADA" style="border-bottom: 4px solid var(--color-avariada);" onclick="filtrarPorEstado('AVARIADA')"><span class="stat-value" style="color: var(--color-avariada); -webkit-text-fill-color: var(--color-avariada);">${maquinasPorEstado['AVARIADA'].length}</span><span class="stat-label">Avariadas</span>${buildTooltipHtml('Teares em', 'AVARIA', 'avariada', maquinasPorEstado['AVARIADA'], 'fa-solid fa-ban')}</div>
+            `;
+
+            let techHtml = ''; const techs = Object.keys(techCount).sort((a,b) => techCount[b] - techCount[a]); 
+            if (techs.length === 0) { techHtml = '<div style="width: 100%; text-align: center; padding: 15px; opacity: 0.5; font-size: 0.8rem; font-style: italic;">Nenhum técnico com amostras atribuídas.</div>'; } 
+            else { 
+                techs.forEach(tech => { 
+                    techHtml += `<div class="stat-card tech-card" style="border-bottom: 4px solid var(--color-amostras); cursor: default;"><span class="stat-value" style="color: var(--color-amostras); -webkit-text-fill-color: var(--color-amostras);">${techCount[tech]}</span><span class="stat-label">${tech}</span>${buildTooltipHtml('Amostras de', tech, 'amostras', techMachines[tech], 'fa-solid fa-swatchbook')}</div>`; 
+                }); 
+            }
+            techDash.innerHTML = techHtml;
+
+            const chartCtx = document.getElementById('estadoFabricaChart').getContext('2d');
+            const dadosGrafico = [ maquinasPorEstado['PRODUÇÃO'].length, maquinasPorEstado['PREPARAÇÃO PRODUÇÃO'].length, maquinasPorEstado['DESENVOLVIMENTO AMOSTRAS'].length, maquinasPorEstado['MANUTENÇÃO'].length, maquinasPorEstado['PARADO'].length, maquinasPorEstado['AVARIADA'].length ];
+            const rootStyle = getComputedStyle(document.documentElement);
+            const coresGrafico = [ rootStyle.getPropertyValue('--color-producao').trim() || '#70AD47', rootStyle.getPropertyValue('--color-preparacao').trim() || '#FFC000', rootStyle.getPropertyValue('--color-amostras').trim() || '#5B9BD5', rootStyle.getPropertyValue('--color-manutencao').trim() || '#ED7D31', rootStyle.getPropertyValue('--color-parado').trim() || '#A5A5A5', rootStyle.getPropertyValue('--color-avariada').trim() || '#FF0000' ];
+
+            if (chartEstadoFabrica) { chartEstadoFabrica.data.datasets[0].data = dadosGrafico; chartEstadoFabrica.data.datasets[0].backgroundColor = coresGrafico; chartEstadoFabrica.update(); } 
+            else if (dadosGrafico.some(val => val > 0)) { chartEstadoFabrica = new Chart(chartCtx, { type: 'doughnut', data: { labels: ['Produção', 'Preparação', 'Amostras', 'Manutenção', 'Parados', 'Avariadas'], datasets: [{ data: dadosGrafico, backgroundColor: coresGrafico, borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, layout: { padding: 0 } } }); }
+        }
+
+        function renderizarFabrica(idTearAnimar = null) {
+            try {
+                renderizarEstatisticas(); 
+                const grid = document.getElementById('mainGrid'); 
+                if (!grid) return;
+                
+                let colunas = (db.config && db.config.colunas) ? parseInt(db.config.colunas) : 4;
+                grid.innerHTML = ''; 
+                grid.style.gridTemplateColumns = `repeat(${colunas}, 1fr)`;
+                
+                let arrayUsers = [];
+                if(db.utilizadores && typeof db.utilizadores === 'object') {
+                    Object.keys(db.utilizadores).forEach(key => { if(db.utilizadores[key] !== null) arrayUsers.push(db.utilizadores[key]); });
+                } else if (Array.isArray(db.utilizadores)) {
+                    arrayUsers = db.utilizadores.filter(u => u !== null);
+                }
+                const tecnicos = arrayUsers.filter(c => c && c.categoria && c.categoria.includes('Técnico de Desenho')).map(c => c.nome);
+                
+                const maquinasComAlerta = [];
+                if(db.alertas) { Object.values(db.alertas).forEach(al => { if(al && al.status === 'pendente') maquinasComAlerta.push(al.tear); }); }
+
+                let totalSlots = (db.config && db.config.totalSlots) ? parseInt(db.config.totalSlots) : 40;
+                if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = 40;
+
+                for (let index = 0; index < totalSlots; index++) {
+                    const idTear = (db.layout && db.layout.length > index) ? db.layout[index] : null;
+                    
+                    try {
+                        const slot = document.createElement('div'); 
+                        slot.className = 'slot ' + (idTear ? '' : 'empty-slot'); 
+                        slot.style.minHeight = `${(db.config && db.config.tamanhoCartao) ? db.config.tamanhoCartao : 350}px`; 
+                        slot.ondragover = (e) => e.preventDefault(); 
+                        slot.ondrop = (e) => drop(e, index);
+                        
+                        if (idTear && db.maquinas && db.maquinas[idTear]) {
+                            const m = db.maquinas[idTear]; 
+                            const s = m.status || 'PARADO';
+                            const isDarkText = (s === 'PRODUÇÃO' || s === 'PREPARAÇÃO PRODUÇÃO'); 
+                            const themeClass = isDarkText ? 'theme-dark-text' : 'theme-light-text'; 
+                            const lblClass = isDarkText ? 'lbl-dark' : 'lbl-light'; 
+                            const stClass = s.toLowerCase().replace(/ /g, "_").normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
+                            const iconObj = getIconObj(s);
+                            
+                            let rawFila = Array.isArray(m.fila) ? m.fila : Object.values(m.fila || {});
+                            let filaArray = [];
+                            for(let i=0; i<rawFila.length; i++) {
+                                if (rawFila[i]) { filaArray.push(rawFila[i]); }
+                                else { filaArray.push({tipo:'PARADO', cliente:'', modelo:'', desenhador:''}); }
+                            }
+                            while(filaArray.length < 3) { filaArray.push({tipo:'PARADO', cliente:'', modelo:'', desenhador:''}); }
+                            m.fila = filaArray;
+                            
+                            let btnAddHtml = filaArray[filaArray.length - 1].tipo !== 'PARADO' ? `<button class="btn-icon" style="color: #70AD47 !important; -webkit-text-fill-color: #70AD47 !important; opacity: 1 !important; font-size: 1.1rem; padding: 4px;" onclick="adicionarTarefaFila('${idTear}')" title="Adicionar Nova Tarefa"><i class="fa-solid fa-plus-circle"></i></button>` : '';
+                            
+                            let cardClass = "tear-card"; 
+                            if (s === 'AVARIADA') cardClass += " bg-avariada"; 
+                            if (maquinasComAlerta.includes(idTear)) cardClass += " alert-active";
+                            if (idTear === idTearAnimar) cardClass += " saving-card"; 
+                            
+                            let alertHtml = maquinasComAlerta.includes(idTear) ? `<div class="alert-bar" onclick="abrirModalAlertas('pendentes', '${idTear}')"><i class="fa-solid fa-triangle-exclamation"></i> Notificações Pendentes</div>` : '';
+
+                            let workArea = '';
+                            if (s === 'DESENVOLVIMENTO AMOSTRAS') { workArea = `<div class="info-lbl ${lblClass}">Técnico</div><select class="card-input-base ${themeClass}" style="margin-bottom: 12px;" onchange="updateFull('${idTear}', 'desenhador', this.value)"><option value="">Selecione...</option>${tecnicos.map(d => `<option value="${d}" ${m.desenhador===d?'selected':''}>${d}</option>`).join('')}</select><div class="info-lbl ${lblClass}">Artigo</div><input class="card-input-base ${themeClass}" placeholder="Opcional" value="${m.modelo || ''}" onchange="updateFull('${idTear}', 'modelo', this.value)">`; } 
+                            else if (s === 'PRODUÇÃO' || s === 'PREPARAÇÃO PRODUÇÃO') { workArea = `<div class="info-lbl ${lblClass}">Cliente</div><input class="card-input-base ${themeClass}" style="margin-bottom: 12px;" placeholder="Opcional" value="${m.cliente || ''}" onchange="updateFull('${idTear}', 'cliente', this.value)"><div class="info-lbl ${lblClass}">Artigo</div><input class="card-input-base ${themeClass}" placeholder="Opcional" value="${m.modelo || ''}" onchange="updateFull('${idTear}', 'modelo', this.value)">`; } 
+                            else if (s !== 'AVARIADA' && s !== 'MANUTENÇÃO') { workArea = `<div style="padding:5px; text-align:center; opacity:0.3; font-weight:bold; font-size:0.65rem; color:${isDarkText?'#000':'#fff'}; -webkit-text-fill-color:${isDarkText?'#000':'#fff'};">S/ ATIVIDADE</div>`; }
+                            
+                            let contentHtml = '';
+                            if (s === 'AVARIADA') {
+                                contentHtml = `<div style="padding: 12px; display:flex; justify-content:space-between; align-items:flex-start;"><div><span class="tear-label" style="color:white; -webkit-text-fill-color:white;">TEAR</span><h2 class="tear-name" style="color:white; -webkit-text-fill-color:white;">${idTear}</h2><div style="font-size:0.6rem; font-weight:800; opacity:0.8; margin-top:2px; color:white; -webkit-text-fill-color:white; text-transform: uppercase;">${m.tipo || '--'} | ${m.pol ? String(m.pol).replace(/"/g,'')+'"' : '--'}</div></div><div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;"><select class="status-dropdown card-input-base theme-light-text" style="margin-bottom:0;" onchange="updateFull('${idTear}', 'status', this.value)">${['PREPARAÇÃO PRODUÇÃO','PRODUÇÃO','DESENVOLVIMENTO AMOSTRAS','MANUTENÇÃO','PARADO','AVARIADA'].map(opt => `<option value="${opt}" ${s===opt?'selected':''}>${opt}</option>`).join('')}</select></div></div><div style="flex-grow:1; display:flex; flex-direction:column; justify-content:center; align-items:center; position: relative;"><i class="${iconObj.class}" style="font-size: 8.5rem; color: ${iconObj.color}; -webkit-text-fill-color: ${iconObj.color};"></i><h3 style="position: absolute; font-size: 2.8rem; font-weight: 900; letter-spacing: 2px; margin:0; color: ${iconObj.color}; -webkit-text-fill-color: ${iconObj.color}; text-shadow: 0 4px 15px rgba(0,0,0,0.6);">AVARIADA</h3></div><div style="padding: 10px; display: flex; justify-content: space-between; align-items: flex-end;"><div style="font-size:0.5rem; font-weight:700; opacity:0.4; color: white; -webkit-text-fill-color:white;">Atualizado - ${m.lastUpdate || '--'}</div><div class="card-controls"><button class="btn-icon" onclick="toggleEdit('${idTear}')" title="Configurar Máquina"><i class="fa-solid fa-gear"></i></button><button class="btn-icon move-handle" onmousedown="enableDrag(event)" onmouseup="disableDrag(event)" title="Mover"><i class="fa-solid fa-arrows-up-down-left-right"></i></button></div></div>`;
+                            } else {
+                                contentHtml = `<div class="current-status status-${stClass}"><div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 10px;"><div><span class="tear-label" style="color:${isDarkText?'#000':'#fff'}; -webkit-text-fill-color:${isDarkText?'#000':'#fff'};">TEAR</span><h2 class="tear-name" style="color:${isDarkText?'#000':'#fff'}; -webkit-text-fill-color:${isDarkText?'#000':'#fff'};">${idTear}</h2><div style="font-size:0.6rem; font-weight:800; opacity:0.8; margin-top: 2px; color:${isDarkText?'#000':'#fff'}; -webkit-text-fill-color:${isDarkText?'#000':'#fff'}; text-transform: uppercase;">${m.tipo || '--'} | ${m.pol ? String(m.pol).replace(/"/g,'')+'"' : '--'}</div></div><div style="display:flex; flex-direction:column; align-items:flex-end; gap: 10px;"><select class="status-dropdown card-input-base ${themeClass}" style="margin-bottom:0;" onchange="updateFull('${idTear}', 'status', this.value)">${['PREPARAÇÃO PRODUÇÃO','PRODUÇÃO','DESENVOLVIMENTO AMOSTRAS','MANUTENÇÃO','PARADO','AVARIADA'].map(opt => `<option value="${opt}" ${s===opt?'selected':''}>${opt}</option>`).join('')}</select><i class="${iconObj.class}" style="font-size: 2.8rem; color: ${iconObj.color}; -webkit-text-fill-color: ${iconObj.color}; margin-right: 5px;"></i></div></div>${s === 'MANUTENÇÃO' ? `<div style="flex-grow:1; display:flex; align-items:center; justify-content:center;"><div style="font-size:1.6rem; font-weight:900; opacity:0.3; letter-spacing:2px; color:white; -webkit-text-fill-color:white;">MANUTENÇÃO</div></div>` : workArea}</div><div class="planning-section" style="${s === 'MANUTENÇÃO' ? 'background:#050d1a;' : ''}"> <div class="tasks-scroll-area">${renderFila(idTear, m.fila, tecnicos)}</div> <div style="position:absolute; bottom:6px; left:10px; font-size:0.5rem; font-weight:700; opacity:0.4;">Atualizado - ${m.lastUpdate || '--'}</div><div class="card-controls">${btnAddHtml}<button class="btn-icon" onclick="toggleEdit('${idTear}')" title="Configurar Máquina"><i class="fa-solid fa-gear"></i></button><button class="btn-icon move-handle" onmousedown="enableDrag(event)" onmouseup="disableDrag(event)" title="Mover"><i class="fa-solid fa-arrows-up-down-left-right"></i></button></div></div>`;
+                            }
+                            
+                            slot.innerHTML = `<div class="${cardClass}" draggable="false" ondragstart="dragStart(event, ${index})" ondragend="this.setAttribute('draggable','false'); this.style.opacity='1'">${alertHtml}${contentHtml}<div id="edit-${idTear}" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background-color:rgba(5, 13, 26, 0.95); backdrop-filter: blur(5px); z-index:100; padding:20px; flex-direction:column; gap:10px; box-sizing: border-box;"><h3 style="margin: 0 0 10px 0; color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); font-size: 1.1rem; text-transform: uppercase;">Configurar Tear ${idTear}</h3><select id="edit-tipo-${idTear}" class="card-input-base theme-light-text" style="padding:10px; border-radius:6px; height:auto; font-size:0.9rem;"><option value="">- Modelo do Tear -</option>${(db.tipos||[]).map(t => `<option value="${t}" ${m.tipo===t?'selected':''}>${t}</option>`).join('')}</select><select id="edit-pol-${idTear}" class="card-input-base theme-light-text" style="padding:10px; border-radius:6px; height:auto; font-size:0.9rem;"><option value="">- Polegadas -</option>${(db.polegadas||[]).map(p => `<option value="${p}" ${m.pol===p?'selected':''}>${p}</option>`).join('')}</select><div style="flex-grow: 1;"></div><button onclick="gravarConfig('${idTear}')" class="btn-primary" style="padding: 12px; font-size: 0.9rem;">💾 Gravar Modificações</button><div style="display: flex; gap: 10px;"><button onclick="toggleEdit('${idTear}')" class="btn-modern" style="flex:1; background: rgba(255,255,255,0.1); border:none; color: white;">⬅ Voltar</button><button onclick="removerTear('${idTear}', ${index})" class="btn-modern" style="flex:1; background: rgba(255, 71, 87, 0.1); color: #ff4757; border: 1px solid rgba(255,71,87,0.3);">🗑️ Apagar</button></div></div></div>`;
+                        } else { 
+                            slot.innerHTML = ``; 
+                        }
+                        grid.appendChild(slot);
+                    } catch(err) {
+                        console.error(`Erro ao desenhar máquina no slot ${index}:`, err);
+                    }
+                }
+
+                const searchInput = document.getElementById('search-input');
+                if (estadoAtivo) { aplicarFiltroEstado(); } 
+                else if (searchInput && searchInput.value) { filtrarGrelha(searchInput.value); }
+                
+            } catch(erroGeral) {
+                console.error("ERRO FATAL ao desenhar fábrica:", erroGeral);
+                const erroDiv = document.getElementById('mainGrid');
+                if (erroDiv) {
+                    erroDiv.innerHTML = `<div style="grid-column: 1 / -1; background: rgba(255,71,87,0.1); border: 2px solid #ff4757; color: white; padding: 20px; border-radius: 8px; text-align: center;"><b>Ocorreu um erro ao carregar as máquinas.</b><br><br>Detalhe para programação: <i>${erroGeral.message}</i></div>`;
+                }
+            }
+        }
+
+        // ==========================================
+        // EXPORTAÇÃO CSV E NOTIFICAÇÕES PUSH
+        // ==========================================
+        const messaging = firebase.messaging(); 
+        messaging.onMessage((payload) => {
+            console.log('Mensagem recebida com a app aberta: ', payload);
+            try { const som = new Audio('alerta.mp3'); som.play().catch(e => {}); } catch(e) {}
+            abrirAviso("🚨 NOVO ALERTA NA FÁBRICA!<br><br>" + payload.notification.body);
+        });
+
+        async function ativarNotificacoesPush() {
+            try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') { abrirAviso("Precisa de permitir notificações nas definições do navegador."); return; }
+                let swReg;
+                if ('serviceWorker' in navigator) { swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js'); await navigator.serviceWorker.ready; } 
+                else { abrirAviso("O seu navegador não suporta notificações Push."); return; }
+                const vapidToken = await messaging.getToken({ vapidKey: 'BIgLOlftrfIGW5T-cbfHlRr7X9nLu_NljS2t_HywAaUMgxUPzkS5SGLfgy7kYiXmlZTTnmo4Do9gZL2UVP56acI', serviceWorkerRegistration: swReg });
+                
+                if (vapidToken) {
+                    let deviceId = localStorage.getItem('jway_device_id'); let deviceName = localStorage.getItem('jway_device_name');
+                    if (!deviceId || !deviceName) {
+                        pendingVapidToken = vapidToken; document.getElementById('prompt-device-name').value = ''; document.getElementById('modal-prompt-device').style.display = 'flex';
+                    } else {
+                        const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent); const tipoAparelho = isMobile ? "Smartphone / Tablet" : "Desktop (PC)"; const userAtual = localStorage.getItem('jwayUserNome') || 'Administrador';
+                        const tokenData = { token: vapidToken, nomeAparelho: deviceName, utilizador: userAtual, tipo: tipoAparelho, dataRegisto: getNow() };
+                        await jwayDB.ref(`dados/tokens/admin_${deviceId}`).set(tokenData);
+                        mostrarToast(`Aparelho "${deviceName}" configurado.`);
+                    }
+                } else { abrirAviso("Erro ao gerar a morada digital (Token)."); }
+            } catch (error) { console.error(error); abrirAviso("ERRO TÉCNICO: " + error.message); }
+        }
+
+        async function confirmarPromptDevice() {
+            let deviceName = document.getElementById('prompt-device-name').value.trim();
+            if (!deviceName) deviceName = "Aparelho Admin";
+            let deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('jway_device_id', deviceId); localStorage.setItem('jway_device_name', deviceName); fecharPromptDevice();
+            const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent); const tipoAparelho = isMobile ? "Smartphone / Tablet" : "Desktop (PC)"; const userAtual = localStorage.getItem('jwayUserNome') || 'Administrador';
+            const tokenData = { token: pendingVapidToken, nomeAparelho: deviceName, utilizador: userAtual, tipo: tipoAparelho, dataRegisto: getNow() };
+            await jwayDB.ref(`dados/tokens/admin_${deviceId}`).set(tokenData);
+            mostrarToast(`Aparelho "${deviceName}" registado.`); pendingVapidToken = null;
+        }
+
+        function fecharPromptDevice() { document.getElementById('modal-prompt-device').style.display = 'none'; }
+
+        function exportarCSV() {
+            let alertasArray = Object.entries(db.alertas || {}).filter(([id, al]) => al !== null).map(([id, al]) => ({id, ...al}));
+            alertasArray.sort((a, b) => parseDatePT(b.hora) - parseDatePT(a.hora));
+            if (alertasArray.length === 0) { abrirAviso("Não existem dados no histórico de alertas para exportar."); return; }
+            let csvContent = "Tear,Mensagem,Status,Responsavel,Data Criacao,Data Fecho,Fechado Por,Nota/Justificacao\n";
+            alertasArray.forEach(al => {
+                let tear = al.tear === 'GERAL' ? 'Alerta Geral' : al.tear; let msg = `"${(al.msg || '').replace(/"/g, '""')}"`; let status = al.status === 'aceite' ? 'Aceite' : (al.status === 'rejeitado' ? 'Rejeitado' : al.status); let resp = `"${(al.responsavel || 'Desconhecido').replace(/"/g, '""')}"`; let dataCria = al.hora || ''; let dataFecho = al.resolvidoEm || ''; let fechadoPor = `"${(al.fechadoPor || 'Administrador').replace(/"/g, '""')}"`; let just = `"${(al.justificacao || '').replace(/"/g, '""')}"`;
+                csvContent += `${tear},${msg},${status},${resp},${dataCria},${dataFecho},${fechadoPor},${just}\n`;
+            });
+            let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); let url = URL.createObjectURL(blob); let a = document.createElement("a"); a.setAttribute("href", url); let dataHoje = new Date().toISOString().slice(0, 10); a.setAttribute("download", `Historico_Ocorrencias_JWAY_${dataHoje}.csv`); document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "dados": {
+      ".read": true,
+      ".write": true
+    },
+    "utilizadores": {
+      ".read": true,
+      ".write": "auth != null"
+    }
+  }
+}

@@ -9,28 +9,36 @@
     <title>Jway - Portal de Acesso</title>
     
     <link rel="icon" href="src/assets/images/jway48x48.ico">
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="src/css/estilos-globais.css?v=41">
+    <link rel="manifest" href="manifest.json?v=20260412a">
+    <link rel="stylesheet" href="src/css/estilos-globais.css?v=20260412a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        html, body {
+            min-height: 100%;
+            margin: 0;
+            padding: 0;
+        }
         body {
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
             min-height: 100dvh;
             margin: 0;
+            padding: 0;
             position: relative;
-            overflow-y: auto;
+            overflow-y: hidden;
             overflow-x: hidden;
         }
         body::before,
         body::after {
             content: "";
-            position: absolute;
+            position: fixed;
             border-radius: 50%;
             pointer-events: none;
             filter: blur(40px);
+            z-index: 0;
         }
         body::before {
             width: 280px;
@@ -46,8 +54,8 @@
             bottom: -80px;
             left: -60px;
         }
-        .login-shell { width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; z-index: 1; }
-        .login-box { background: rgba(10, 25, 47, 0.9); padding: 34px 32px; border-radius: 16px; border: 1px solid var(--jway-blue); width: 100%; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
+        .login-shell { width: 100%; max-width: 560px; padding: 20px; box-sizing: border-box; position: relative; z-index: 1; margin: 0 auto; }
+        .login-box { background: rgba(10, 25, 47, 0.9); padding: 34px 32px; border-radius: 16px; border: 1px solid var(--jway-blue); width: 100%; box-sizing: border-box; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
         .login-box h2 { margin: 0 0 8px 0; color: var(--jway-blue); font-size: 0.95rem; letter-spacing: 2px; font-weight: 800; opacity: 0.95; text-transform: uppercase; }
         .login-subtitle { margin: 0 0 22px 0; color: rgba(255,255,255,0.6); font-size: 0.76rem; letter-spacing: 0.4px; }
         .mode-switch {
@@ -59,6 +67,7 @@
             border-radius: 12px;
             background: rgba(0, 0, 0, 0.34);
             border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
         }
         .mode-option {
             display: inline-flex;
@@ -76,6 +85,7 @@
             font-weight: 800;
             cursor: pointer;
             transition: 0.2s;
+            min-width: 0;
         }
         .mode-option:hover {
             color: #ffffff;
@@ -116,18 +126,57 @@
             to { transform: rotate(360deg); }
         }
         @media (max-width: 480px) {
+            html {
+                height: auto;
+                min-height: 100%;
+                padding: 0;
+                margin: 0;
+                overflow-x: hidden;
+            }
             body {
+                display: block;
+                justify-content: flex-start;
                 align-items: flex-start;
+                min-height: 100svh;
+                min-height: 100dvh;
+                padding-top: max(10px, env(safe-area-inset-top));
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
+                padding-left: 8px;
+                padding-right: 8px;
+                overflow-y: auto;
+                overflow-x: hidden;
             }
             .login-shell {
-                padding: 10px;
-                margin: 10px 0;
+                max-width: 100%;
+                width: min(100%, 400px);
+                padding: 6px 0;
+                margin: 0 auto;
             }
-            .login-box { padding: 22px 16px; }
+            .login-box { width: 100%; max-width: 100%; padding: 22px 16px; }
+        }
+        @media (min-width: 1024px) {
+            .login-shell {
+                max-width: 620px;
+            }
+            .login-box {
+                padding: 38px 42px;
+            }
         }
     </style>
 </head>
 <body>
+
+    <script>
+        (function forceLoginCacheBust() {
+            var build = "20260412a";
+            var params = new URLSearchParams(window.location.search);
+            if (params.get("v") === build) {
+                return;
+            }
+            params.set("v", build);
+            window.location.replace(window.location.pathname + "?" + params.toString() + window.location.hash);
+        })();
+    </script>
 
     <main class="login-shell">
     <div class="login-box">
@@ -179,6 +228,6 @@
     <script src="src/js/firebase-config.js"></script>
     <script src="src/js/session-utils.js"></script>
     <script src="src/js/autenticacao.js"></script>
-    <script src="src/js/index-page.js?v=1"></script>
+    <script src="src/js/index-page.js?v=20260412a"></script>
 </body>
 </html>

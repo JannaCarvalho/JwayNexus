@@ -1,0 +1,2264 @@
+﻿<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <meta name="theme-color" content="#050d1a">
+    <title>Jway - Mapa de Partidas Tinturaria</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="src/js/firebase-config.js"></script>
+    <script src="src/js/session-utils.js"></script>
+    <script src="src/js/navigation-menu.js?v=1"></script>
+    <script src="src/js/imprimir-mapa-tinturaria.js?v=1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="icon" href="src/assets/images/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="src/css/estilos-globais.css?v=41">
+
+    <style>
+        :root { 
+            --bg-body: #050d1a; --jway-blue: #00a8ff; 
+            --color-ok: #70AD47; --color-warn: #FFC000; --color-danger: #ff4757; 
+            --color-clone: #f39c12; --color-row-detail: #081221;
+        }
+        body { background: var(--bg-body); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background-image: radial-gradient(circle at 50% 0%, #0a1b35 0%, #050d1a 100%); min-height: 100vh;}
+        
+        /* OCULTAR ELEMENTOS PARA NÃO-ADMINS */
+        body.not-admin .admin-only { display: none !important; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(0, 168, 255, 0.2); padding-bottom: 15px; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;}
+        h1 { color: #ffffff; text-transform: uppercase; font-size: 1.5rem; margin: 0; display: flex; align-items: center; gap: 15px;}
+        h1 i.fa-solid, h1 i.fa-regular, h1 i.fa-brands { color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); }
+        
+        .logo-screen { height: 40px; }
+        .logo-print { display: none; }
+
+        /* --- TOOLBAR MODERNA --- */
+        .toolbar { background: rgba(255, 255, 255, 0.02); padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);}
+        
+        .toolbar-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .filters-left { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; align-items: center; }
+        .filters-right { display: flex; align-items: center; }
+        
+        .search-wrapper { flex: 1; position: relative; min-width: 250px;}
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 1.1rem; pointer-events: none; }
+        .search-input { width: 100%; padding: 14px 15px 14px 45px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.4); color: white; outline: none; font-weight: 600; font-size: 0.95rem; box-sizing: border-box; transition: 0.3s; }
+        .search-input:focus { border-color: var(--jway-blue); box-shadow: 0 0 15px rgba(0,168,255,0.2); background: rgba(0,0,0,0.6); }
+        input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; height: 16px; width: 16px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>') no-repeat center center; cursor: pointer; opacity: 0.7; }
+        
+        .filter-select { padding: 14px 15px 14px 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.4); color: white; outline: none; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: 0.3s; flex: 0 0 auto; min-width: 180px; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='white'%3E%3Cpath d='M2 3l3 3 3-3z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 15px center; }
+        .filter-select:focus { border-color: var(--jway-blue); }
+
+        .toolbar-bottom { display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap; gap: 15px;}
+        
+        /* --- BOTÕES TINTURARIA --- */
+        .toolbar-filters-tinturaria { display: flex; gap: 10px; flex-wrap: wrap; flex: 1; }
+        .btn-tint-filter { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+        .btn-tint-filter:hover { background: rgba(0,168,255,0.1); color: white; border-color: rgba(0,168,255,0.3); transform: translateY(-1px);}
+        .btn-tint-filter.active { background: var(--jway-blue); color: white; border-color: var(--jway-blue); box-shadow: 0 4px 12px rgba(0,168,255,0.4); }
+
+        .tools-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;}
+        
+        .btn-print-map {
+            background: rgba(112, 173, 71, 0.15);
+            color: var(--color-ok);
+            border: 1px solid rgba(112, 173, 71, 0.5);
+        }
+        .btn-print-map:hover {
+            background: var(--color-ok);
+            color: #ffffff;
+            border-color: var(--color-ok);
+        }
+
+        .btn-subtle { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 8px; justify-content: center; transition: 0.2s; text-transform: uppercase; letter-spacing: 0.6px; }
+        .btn-subtle:hover { background: rgba(255,255,255,0.15); border-color: var(--jway-blue); }
+        .btn-subtle.excel:hover { color: #2ecc71; border-color: #2ecc71; background: rgba(46, 204, 113, 0.05); }
+        
+        .btn-action-main { background: rgba(0, 168, 255, 0.14); border: 1px solid rgba(0, 168, 255, 0.45); color: var(--jway-blue); padding: 12px 22px; border-radius: 8px; font-weight: 900; font-size: 0.9rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; justify-content: center; text-transform: uppercase; letter-spacing: 0.7px; }
+        .btn-action-main:hover { background: var(--jway-blue); color: white; border-color: var(--jway-blue); transform: translateY(-1px); box-shadow: 0 5px 15px rgba(0,168,255,0.3); }
+.btn-no-glow { box-shadow: none !important; }
+.btn-no-glow:hover { transform: none !important; box-shadow: none !important; filter: none !important; }
+
+        .btn-faturas { background: rgba(243, 156, 18, 0.1); border: 1px solid var(--color-clone); color: var(--color-clone); padding: 12px 30px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-faturas:hover { background: var(--color-clone); color: white; box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3); transform: translateY(-2px); }
+
+        /* --- TABELA E SCROLL --- */
+        .table-wrapper { overflow-x: auto; overflow-y: visible; background: transparent; border-radius: 12px; padding-bottom: 20px; max-height: none !important; -webkit-overflow-scrolling: touch;}
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: 0.85rem; min-width: 1200px; text-align: center; }
+        
+        th { background: rgba(0, 168, 255, 0.05); color: var(--jway-blue); padding: 15px 10px; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 2px solid rgba(0,168,255,0.2); will-change: transform;}
+        
+        /* FOOTER DINÂMICO DA TABELA */
+        #tinturaria-table tfoot td { background: rgba(0, 168, 255, 0.08); border-top: 2px solid var(--jway-blue); padding: 15px 10px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); position: sticky; bottom: 0; z-index: 9; border-bottom: none;}
+        #tinturaria-table tfoot td:first-child { border-bottom-left-radius: 12px; }
+        #tinturaria-table tfoot td:last-child { border-bottom-right-radius: 12px; }
+
+        .master-row td { background: rgba(255,255,255,0.03); padding: 12px 10px; vertical-align: middle; border-top: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); transition: all 0.2s;}
+        .master-row td:first-child { border-left: 1px solid rgba(255,255,255,0.02); border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+        .master-row td:last-child { border-right: 1px solid rgba(255,255,255,0.02); border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+        
+        .master-row { cursor: pointer; font-weight: bold; }
+        .master-row:hover td { background: rgba(255,255,255,0.06); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .master-row.is-concluido td { opacity: 0.5; background: rgba(0,0,0,0.2); } 
+        
+        .expand-icon { display: inline-block; width: 24px; height: 24px; line-height: 24px; background: rgba(0,168,255,0.1); border-radius: 50%; color: var(--jway-blue); font-weight: 900; transition: transform 0.3s; font-size: 0.7rem;}
+        .expanded .expand-icon { transform: rotate(90deg); background: var(--jway-blue); color: white;}
+
+        .detail-row { display: none; }
+        .detail-row.active { display: table-row; }
+        .detail-row > td { padding: 0 40px 15px 40px !important; border: none !important; background: transparent !important; }
+        
+        .sub-table { width: 100%; margin: 0; background: var(--color-row-detail); border-radius: 12px; border: 1px solid rgba(0,168,255,0.15); overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); border-spacing: 0; }
+        .sub-table th { background: rgba(0,0,0,0.4); color: #aaa; font-size: 0.65rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px; position: relative; top: auto; z-index: 1;}
+        .sub-table td { border-bottom: 1px dashed rgba(255,255,255,0.05); padding: 8px; font-size: 0.8rem; background: transparent;}
+        
+        .grid-input { width: 100%; padding: 8px 6px; border-radius: 6px; border: 1px solid transparent; background: rgba(255,255,255,0.03); color: white; text-align: center; outline: none; font-size: 0.8rem; box-sizing: border-box; transition: all 0.3s ease; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .grid-input:focus:not([readonly]):not(:disabled) { border: 1px solid var(--jway-blue); background: rgba(0,0,0,0.8); box-shadow: 0 0 8px rgba(0,168,255,0.3); transform: scale(1.02); }
+        select.grid-input { appearance: auto; text-align: left; padding-left: 10px; cursor: pointer;}
+        select.grid-input option { background: #0f1b2b; color: white; }
+        .grid-input[readonly], .grid-input:disabled, .custom-check:disabled { opacity: 0.6; cursor: not-allowed; background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.05); }
+
+        .peso-val { color: var(--jway-blue); font-weight: 900; font-size: 1.05rem; }
+        .leadtime-badge { background: rgba(0,168,255,0.1); padding: 6px 10px; border-radius: 20px; font-weight: 900; border: 1px solid rgba(0,168,255,0.2); color: var(--jway-blue); }
+
+        .btn-remove, .btn-edit, .btn-concluir, .btn-reabrir { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px; border-radius: 6px; cursor: pointer; transition: 0.2s; }
+        .btn-remove:hover { background: var(--color-danger); color: white; }
+        .btn-edit:hover { background: var(--jway-blue); color: white; }
+        .btn-concluir:hover:not(:disabled) { background: var(--color-ok); color: white; }
+        .btn-reabrir:hover { background: var(--color-warn); color: white; }
+        .btn-concluir:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* --- ESTÉTICA DA GAVETA DE PARTIDAS --- */
+        .btn-sub-action { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-sub-action:hover { background: var(--jway-blue); color: white; border-color: var(--jway-blue); box-shadow: 0 4px 10px rgba(0,168,255,0.4); transform: translateY(-1px); }
+        
+        .btn-sub-delete { background: transparent; border: none; color: #666; padding: 6px; border-radius: 6px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-sub-delete:hover { color: var(--color-danger); background: rgba(255, 71, 87, 0.1); transform: scale(1.1); }
+        
+        .btn-add-partida { background: rgba(0, 168, 255, 0.05); border: 1px dashed rgba(0, 168, 255, 0.4); color: var(--jway-blue); padding: 10px 24px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; margin: 5px 0; }
+        .btn-add-partida:hover { background: var(--jway-blue); color: white; border-style: solid; box-shadow: 0 6px 15px rgba(0,168,255,0.3); transform: translateY(-2px); }
+
+        .prog-container { width: 100%; min-width: 140px; margin-bottom: 8px; }
+        .prog-header { display: flex; justify-content: space-between; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; transition: color 0.5s ease; letter-spacing: 0.5px;}
+        .prog-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);}
+        .prog-fill { height: 100%; transition: width 0.5s ease, background-color 0.5s ease, box-shadow 0.5s ease; border-radius: 4px; }
+
+        /* --- MODAIS --- */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-content { background: #0f1b2b; border: 1px solid rgba(0, 168, 255, 0.4); border-radius: 12px; width: 95%; max-width: 650px; padding: 25px; box-shadow: 0 15px 50px rgba(0,0,0,0.8); max-height: 90vh; overflow-y: auto;}
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; color: #ffffff; font-size: 1.3rem;}
+        .modal-header h3 i.fa-solid, .modal-header h3 i.fa-regular, .modal-header h3 i.fa-brands { color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); }
+        .btn-close { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; line-height: 1; opacity: 0.5;}
+        
+        .fase-section { background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px; transition: border-color 0.3s; }
+        .fase-section:hover { border-color: rgba(0, 168, 255, 0.3); }
+        .fase-section h4 { margin: 0 0 15px 0; color: #aaa; font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;}
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 0.75rem; color: #aaa; font-weight: bold; text-transform: uppercase;}
+
+        .lista-ofs-item { display: flex; align-items: center; gap: 15px; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.02); margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; }
+        .lista-ofs-item:hover { background: rgba(255,255,255,0.05); border-color: rgba(0,168,255,0.2); }
+        .cb-nova-exp { transform: scale(1.3); cursor: pointer; accent-color: var(--jway-blue); }
+
+        /* --- CLICK TO COPY E TOOLTIPS --- */
+        .copyable { cursor: pointer; transition: 0.2s; position: relative; display: inline-block; padding: 2px 4px; border-radius: 4px;}
+        .copyable:hover { color: white !important; background: rgba(0, 168, 255, 0.2); transform: scale(1.05); }
+        
+        .info-hover { position: relative; cursor: help; border-bottom: 1px dotted #aaa; color: #aaa; font-family: monospace; padding-bottom: 1px; display: inline-block; transition: 0.2s; }
+        .info-hover:hover { color: white; border-color: white; }
+        .info-hover::after {
+            content: attr(data-tooltip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+            background: var(--jway-blue); color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; white-space: nowrap;
+            opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 100; box-shadow: 0 4px 15px rgba(0,0,0,0.5); font-weight: bold; font-family: 'Segoe UI', sans-serif; pointer-events: none;
+        }
+        .info-hover::before {
+            content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            border-width: 6px; border-style: solid; border-color: var(--jway-blue) transparent transparent transparent;
+            opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 100; pointer-events: none;
+        }
+        .info-hover:hover::after, .info-hover:hover::before { opacity: 1; visibility: visible; bottom: 120%; }
+        .info-hover:hover::before { bottom: 95%; }
+
+        /* --- EFEITO GLOW (REMONTA / 2ª e 3ª FASE) --- */
+        @keyframes glow-bg-border {
+            0% { background-color: rgba(243, 156, 18, 0.03); border-color: rgba(243, 156, 18, 0.3); }
+            50% { background-color: rgba(243, 156, 18, 0.12); border-color: rgba(243, 156, 18, 0.9); }
+            100% { background-color: rgba(243, 156, 18, 0.03); border-color: rgba(243, 156, 18, 0.3); }
+        }
+        .master-row.glow-remonta:not(.is-concluido) td { animation: glow-bg-border 2.5s infinite ease-in-out; border-top: 1px solid rgba(243, 156, 18, 0.5) !important; border-bottom: 1px solid rgba(243, 156, 18, 0.5) !important; }
+        .master-row.glow-remonta:not(.is-concluido) td:first-child { border-left: 1px solid rgba(243, 156, 18, 0.5) !important; }
+        .master-row.glow-remonta:not(.is-concluido) td:last-child { border-right: 1px solid rgba(243, 156, 18, 0.5) !important; }
+        .master-row.glow-remonta.is-concluido td { background-color: rgba(243, 156, 18, 0.03); border-top: 1px solid rgba(243, 156, 18, 0.3) !important; border-bottom: 1px solid rgba(243, 156, 18, 0.3) !important; }
+
+        @keyframes glow-bg-border-sub {
+            0% { background-color: rgba(243, 156, 18, 0.02); border-color: rgba(243, 156, 18, 0.2); }
+            50% { background-color: rgba(243, 156, 18, 0.08); border-color: rgba(243, 156, 18, 0.7); }
+            100% { background-color: rgba(243, 156, 18, 0.02); border-color: rgba(243, 156, 18, 0.2); }
+        }
+        .detail-row .glow-remonta-sub:not(.is-concluido) td { animation: glow-bg-border-sub 2.5s infinite ease-in-out; border-top: 1px dashed rgba(243, 156, 18, 0.5) !important; border-bottom: 1px dashed rgba(243, 156, 18, 0.5) !important; }
+        
+        .badge-fases { display: inline-block; background: var(--color-warn); color: #000; font-size: 0.6rem; padding: 2px 6px; border-radius: 10px; font-weight: 900; margin-left: 6px; vertical-align: middle; box-shadow: 0 0 5px rgba(243, 156, 18, 0.5); }
+
+        /* --- DASHBOARDS & KPIs --- */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.2); transition: 0.3s ease; }
+        .kpi-card:hover { transform: translateY(-3px); border-color: rgba(0,168,255,0.3); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .kpi-card-title { font-size: 0.8rem; color: #ffffff; text-transform: uppercase; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;}
+        .kpi-card-title i.fa-solid, .kpi-card-title i.fa-regular, .kpi-card-title i.fa-brands { color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); }
+        .kpi-card-value { font-size: 1.8rem; color: white; font-weight: 900; }
+        .kpi-card-sub { font-size: 0.75rem; color: var(--jway-blue); margin-top: 5px; }
+
+        .summary-dashboard { background: rgba(255, 255, 255, 0.02); padding: 25px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 30px; box-shadow: inset 0 0 20px rgba(0,0,0,0.2); }
+        .summary-dashboard h3 { margin-top: 0; color: #ffffff; font-size: 1rem; text-transform: uppercase; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; display: flex; align-items: center; gap:10px;}
+        .summary-dashboard h3 i.fa-solid, .summary-dashboard h3 i.fa-regular, .summary-dashboard h3 i.fa-brands { color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue); }
+        .resumo-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 10px; }
+        .resumo-table th { background: rgba(255,255,255,0.03); color: #aaa; text-align: center; padding: 10px; border-bottom: 2px solid rgba(0,168,255,0.3); font-size: 0.65rem;}
+        .resumo-table td { padding: 10px; border-bottom: 1px dashed rgba(255,255,255,0.05); text-align: center; }
+
+        .btn-back-to-top { position: fixed; bottom: 30px; right: 30px; background: var(--jway-blue); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 15px rgba(0, 168, 255, 0.4); border: none; opacity: 0; visibility: hidden; transition: all 0.3s ease; z-index: 1000; }
+        .btn-back-to-top.show { opacity: 1; visibility: visible; transform: translateY(0); }
+
+        .site-footer { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 25px 20px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;}
+        .footer-logo { height: 25px; opacity: 0.5; filter: grayscale(100%); transition: 0.3s; }
+        .footer-logo:hover { opacity: 1; filter: grayscale(0%); }
+
+        #loader { position: fixed; inset: 0; background: var(--bg-body); z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--jway-blue); font-weight: bold;}
+        .toast { min-width: 250px; padding: 15px 20px; border-radius: 8px; color: white; font-weight: bold; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(0,0,0,0.6); animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards; display: flex; align-items: center; gap: 10px; pointer-events: auto; }
+        .toast.success { background: rgba(112, 173, 71, 0.95); border: 1px solid var(--color-ok); }
+        .toast.error { background: rgba(255, 71, 87, 0.95); border: 1px solid var(--color-danger); }
+        .toast.info { background: rgba(0, 168, 255, 0.95); border: 1px solid var(--jway-blue); }
+        @keyframes fadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120%); } }
+        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+        /* =======================================================
+           🚀 MOBILE & SMARTPHONE RESPONSIVE TWEAKS 
+           ======================================================= */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header { flex-direction: column; text-align: center; gap: 10px;}
+            .header h1 { font-size: 1.2rem; justify-content: center; width: 100%;}
+            .header .logo-screen { height: 30px; }
+            
+            .toolbar { padding: 15px; gap: 15px; }
+            .toolbar-top { flex-direction: column; align-items: stretch; gap: 15px; }
+            .filters-left { flex-direction: column; align-items: stretch; }
+            .filters-right { justify-content: center; }
+            .search-wrapper, .filter-select { width: 100% !important; min-width: 100%; }
+            .btn-action-main { width: 100%; padding: 15px; font-size: 1rem; }
+            .btn-faturas { width: 100%; box-sizing: border-box; justify-content: center; display: flex; align-items: center; }
+            
+            .toolbar-bottom { flex-direction: column; align-items: stretch; }
+            .toolbar-filters-tinturaria { justify-content: center; }
+            .tools-group { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+            .tools-group button { width: 100%; justify-content: center; }
+            
+            .summary-dashboard { padding: 15px; }
+            .summary-dashboard h3 { font-size: 0.85rem; flex-direction: column; align-items: flex-start; }
+            
+            #container-graficos-clientes > div { width: 100% !important; }
+            canvas { max-height: 250px !important; }
+
+            .modal-content { width: 100%; padding: 15px; border-radius: 8px; }
+            .modal-header h3 { font-size: 1.1rem; }
+            
+            div[style*="grid-template-columns: 1fr 1fr"], 
+            div[style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+            .lista-ofs-item { flex-direction: column; align-items: flex-start; gap: 5px; }
+            .lista-ofs-item span { width: 100% !important; }
+            
+            .resumo-table td, .resumo-table th { padding: 8px 5px; font-size: 0.7rem;}
+
+            /* --- MAGIA DOS CARTÕES NO MOBILE --- */
+            .table-wrapper { overflow-x: hidden !important; }
+            table { min-width: 0 !important; width: 100% !important; display: block; }
+            
+            #tinturaria-table, #tinturaria-table tbody, #tinturaria-table tfoot { display: block; width: 100%; box-sizing: border-box; }
+            #tinturaria-table > thead { display: none; }
+            
+            .master-row { 
+                display: flex !important; 
+                flex-direction: column;
+                background: rgba(10, 25, 47, 0.9) !important; 
+                border: 1px solid rgba(0, 168, 255, 0.3) !important; 
+                border-radius: 12px !important; margin-bottom: 12px; 
+                padding: 10px !important; position: relative;
+                width: 100%; box-sizing: border-box;
+                align-items: center; 
+            }
+            
+            /* REMOVER ESPAÇAMENTO ENTRE LINHAS (ESTILO COMPACTO) */
+            .master-row td { 
+                display: block !important; 
+                padding: 2px 0 !important; 
+                border: none !important;
+                border-bottom: 1px dashed rgba(255,255,255,0.05) !important;
+                text-align: center; width: 100%; box-sizing: border-box;
+                line-height: 1.1 !important;
+            }
+            .master-row td:last-child { border-bottom: none !important; }
+            
+            /* Títulos dos campos */
+            .master-row td::before { 
+                display: block;
+                font-weight: 900; color: var(--jway-blue); font-size: 0.55rem; 
+                text-transform: uppercase; margin-bottom: 1px; opacity: 0.7;
+            }
+            
+            .master-row td:nth-child(2)::before { content: "Enc(s)"; }
+            .master-row td:nth-child(3)::before { content: "Cliente"; }
+            .master-row td:nth-child(4)::before { content: "Modelo(s)"; }
+            .master-row td:nth-child(5)::before { content: "Cor / Código"; }
+            .master-row td:nth-child(6)::before { content: "Tinturaria"; }
+            .master-row td:nth-child(7)::before { content: "Partidas"; }
+            .master-row td:nth-child(8)::before { content: "Progresso"; }
+            .master-row td:nth-child(9)::before { content: "Peso Total"; }
+
+            /* BOTÃO EXPANDIR (NO FUNDO DO CARTÃO) */
+            .master-row td:nth-child(1) { 
+                order: 99; 
+                background: rgba(0, 168, 255, 0.1) !important; 
+                padding: 8px !important; border-radius: 6px; 
+                border: 1px solid var(--jway-blue) !important; cursor: pointer; margin-top: 5px;
+                display: flex !important; justify-content: center; align-items: center;
+            }
+            .master-row td:nth-child(1)::before { display: none; }
+            .master-row td:nth-child(1)::after { content: "Ver Detalhes / Partidas ▼"; font-size: 0.8rem; font-weight: 900; color: white; }
+            .master-row.expanded td:nth-child(1)::after { content: "Ocultar Detalhes ▲"; }
+            .master-row td:nth-child(1) .expand-icon { display: none; }
+
+            /* Ações de Admin */
+            .master-row td.col-acoes { 
+                order: 100; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1) !important; padding-top: 8px !important;
+                display: block !important;
+            }
+            .master-row td.col-acoes::before { display: none; }
+            .master-row td.col-acoes > div { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;}
+            .master-row td.col-acoes button { flex: 1; padding: 10px; font-size: 1rem; min-width: 45%;}
+
+            /* --- GAVETA DE PARTIDAS (COMPACTA) --- */
+            .detail-row.active { display: block; margin-bottom: 10px; width: 100%; }
+            .detail-row > td { padding: 0 !important; display: block; border: none !important;}
+            .sub-table { display: block; border: none; background: transparent; padding: 0; width: 100%;}
+            .sub-table > thead { display: none; }
+            .sub-table > tbody { display: block; width: 100%;}
+            
+            .sub-table tr:not(.add-partida-row) { 
+                display: flex; flex-direction: column; background: rgba(0,0,0,0.4); 
+                border: 1px solid rgba(0,168,255,0.2) !important; border-radius: 8px; 
+                margin-bottom: 8px; padding: 5px; width: 100%; box-sizing: border-box;
+            }
+            
+            .sub-table td { 
+                display: block !important; padding: 2px 0 !important; 
+                text-align: center; width: 100%; border: none !important;
+                line-height: 1.1 !important;
+            }
+
+            /* IDENTIFICAÇÃO DA PARTIDA (MANTÉM QUAL É, REMOVE O LABEL) */
+            .sub-table tr:not(.add-partida-row) td:nth-child(1) {
+                display: block !important;
+                background: rgba(0, 168, 255, 0.15);
+                font-weight: 900;
+                color: white;
+                margin-bottom: 4px;
+                font-size: 0.8rem;
+                padding: 4px 0 !important;
+            }
+            .sub-table tr:not(.add-partida-row) td:nth-child(1)::before { display: none; }
+
+            .sub-table tr:not(.add-partida-row) td:nth-child(2)::before { content: "Peso (Kg)"; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(3)::before { content: "Estado Env."; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(4)::before { content: "Estado Rec."; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(5)::before { content: "Guia"; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(6)::before { content: "Data Envio"; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(7)::before { content: "Data Receção"; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(8)::before { content: "Leadtime"; font-weight: bold; color: #aaa; font-size: 0.55rem; text-transform: uppercase; display: block; margin-bottom: 1px;}
+            .sub-table tr:not(.add-partida-row) td:nth-child(9)::before { display: none; }
+
+            .sub-table td:last-child { display: flex !important; flex-direction: row; gap: 8px; justify-content: center; padding-top: 5px !important;}
+            .sub-table .grid-input { width: 90% !important; max-width: 220px; height: 26px !important; margin: 2px auto !important; padding: 2px !important; font-size: 0.85rem; }
+            
+            .add-partida-row td { display: block; border: none !important; padding: 0 !important; }
+
+            #tinturaria-table tfoot { display: block; width: 100%; box-sizing: border-box; }
+            #tinturaria-table tfoot tr { display: flex; flex-direction: column; background: rgba(0, 168, 255, 0.1); border-radius: 12px; padding: 10px; margin-top: 10px; border: 1px solid rgba(0,168,255,0.3);}
+            #tinturaria-table tfoot td { display: flex; justify-content: space-between; padding: 4px 0 !important; border: none !important; background: transparent !important; align-items: center;}
+            #tinturaria-table tfoot td:empty { display: none !important; }
+        }
+        
+		/* =======================================================
+           🖨️ MODO DE IMPRESSÃO
+           ======================================================= */
+        @media print {
+            @page { size: landscape; margin: 10mm 5mm; }
+            
+            body { background: white !important; color: black !important; padding: 0 !important; margin: 0 !important; font-family: 'Segoe UI', Arial, sans-serif !important; }
+            
+            /* Esconder elementos de interface */
+            .toolbar, .modal-overlay, #loader, .btn-back-to-top, #dashboards-wrapper, #kpi-cards-container, .site-footer, .expand-icon, .action-bar, #toast-container { display: none !important; }
+            
+            /* Título forçado à esquerda */
+            .header { border-bottom: 1px solid black !important; margin-bottom: 5px !important; padding-bottom: 2px !important; display: flex !important; flex-direction: row !important; justify-content: flex-start !important; align-items: center !important; text-align: left !important; }
+            .user-nav-panel, .header-brand .live-clock { display: none !important; }
+            .header-logo { display: inline-block !important; height: 14px !important; margin-right: 8px !important; }
+            .header-title { color: black !important; font-size: 11pt !important; margin: 0 !important; line-height: 1 !important; }
+
+            /* Ajuste de Tabela com Line-Height super comprimido */
+            .table-wrapper { overflow: visible !important; background: transparent !important; border: none !important; padding: 0 !important; }
+            table { width: 100% !important; border-collapse: collapse !important; font-size: 7.5pt !important; color: black !important; line-height: 1 !important; }
+            
+            /* FORÇAR GAVETAS ABERTAS */
+            .detail-row { display: table-row !important; }
+
+            /* OCULTAR COLUNAS INÚTEIS */
+            #tinturaria-table > thead > tr > th:nth-child(1), 
+            #tinturaria-table > tbody > tr.master-row > td:nth-child(1),
+            #tinturaria-table > thead > tr > th:nth-child(8), 
+            #tinturaria-table > tbody > tr.master-row > td:nth-child(8),
+            #tinturaria-table > thead > tr > th:nth-child(10), 
+            #tinturaria-table > tbody > tr.master-row > td:nth-child(10) { display: none !important; }
+            
+            /* Cores a Preto Puro */
+            th, td, span, div, b, strong { color: black !important; opacity: 1 !important; }
+            
+            /* PADDING QUASE ZERO NA TABELA PRINCIPAL */
+            th { background-color: #f0f0f0 !important; border: 1px solid #000 !important; padding: 1px !important; font-weight: bold !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            td { border: 1px solid #000 !important; padding: 1px !important; background: white !important; vertical-align: middle !important; }
+            
+            /* Retirar os paddings invisíveis dos textos "copiáveis" e "tooltips" */
+            .copyable { padding: 0 !important; display: inline !important; }
+            .info-hover { padding: 0 !important; display: inline !important; border: none !important; }
+
+            /* --- GAVETAS (PARTIDAS) --- */
+            .sub-table thead tr:first-child { display: none !important; }
+            .sub-table thead tr:last-child th { font-size: 6.5pt !important; background: #fafafa !important; color: black !important; border-bottom: 1px solid #000 !important; padding: 1px !important; }
+            
+            .sub-table th:nth-child(8), .sub-table td:nth-child(8),
+            .sub-table th:last-child, .sub-table td:last-child { display: none !important; }
+            .btn-add-partida, .btn-sub-action, .btn-sub-delete { display: none !important; }
+
+            /* --- INPUTS E SPANS EXTREMAMENTE COMPRIMIDOS --- */
+            .grid-input { border: none !important; background: transparent !important; color: black !important; padding: 0 !important; margin: 0 !important; font-size: 7.5pt !important; font-weight: bold !important; height: auto !important; line-height: 1 !important; -webkit-appearance: none; appearance: none; text-align: center; }
+            
+            /* --- MAGIA PARA ESCONDER DATAS VAZIAS NO CHROME/EDGE --- */
+            .grid-input::placeholder { color: transparent !important; opacity: 0 !important; }
+            input[type="date"]::-webkit-datetime-edit { padding: 0 !important; line-height: 1 !important; }
+            
+            input[type="date"][value=""],
+            input[type="date"][value=""]::-webkit-datetime-edit,
+            input[type="date"][value=""]::-webkit-datetime-edit-fields-wrapper,
+            input[type="date"][value=""]::-webkit-datetime-edit-text,
+            input[type="date"][value=""]::-webkit-datetime-edit-month-field,
+            input[type="date"][value=""]::-webkit-datetime-edit-day-field,
+            input[type="date"][value=""]::-webkit-datetime-edit-year-field {
+                color: transparent !important;
+                background: transparent !important;
+            }
+            
+            /* PADDING ZERO NAS LINHAS DE DETALHE */
+            .detail-row > td { padding: 0 !important; border: 1px solid #000 !important; border-top: none !important; }
+            .sub-table { border: none !important; margin: 0 !important; }
+            .sub-table td { border-bottom: 1px dotted #ccc !important; padding: 1px !important; }
+            .sub-table tr:last-child td { border-bottom: none !important; }
+            
+            /* RODAPÉ FINAL */
+            #tinturaria-table tfoot { display: table-row-group !important; break-inside: avoid !important; }
+            #tinturaria-table tfoot td { background-color: #eee !important; border: 1px solid #000 !important; font-weight: 900 !important; padding: 2px !important; }
+            #tinturaria-table tfoot td:empty { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <img src="src/assets/images/jwayseamlessflow.png" alt="Logo" style="height: 150px; margin-bottom: 20px; opacity: 0.75;">
+        A Carregar Tinturaria...
+    </div>
+
+    <div id="modalCustomConfirm" class="modal-overlay" style="z-index: 100001;">
+        <div class="modal-content" style="max-width: 450px; text-align: center; padding: 30px;">
+            <div style="font-size: 3rem; margin-bottom: 10px; color: var(--color-warn);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <h3 style="color: var(--color-warn); margin-top: 0; font-size: 1.4rem;">Atenção: Tinturaria Diferente</h3>
+            <p style="color: #ddd; font-size: 0.95rem; line-height: 1.6;">
+                A Tinturaria pré-definida no Mapa de Encomendas para esta seleção é a <br>
+                <b id="confirmTinturariaOriginal" style="color: white; font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom:2px;"></b>.
+            </p>
+            <p style="color: #ddd; font-size: 0.95rem; margin-bottom: 30px; line-height: 1.6;">
+                Tem a certeza absoluta que pretende alterar o destino de expedição para <br>
+                <b id="confirmTinturariaNova" style="color: var(--jway-blue); font-size: 1.1rem; border-bottom: 1px solid rgba(0,168,255,0.2); padding-bottom:2px;"></b>?
+            </p>
+            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn-subtle" onclick="cancelarMudancaTinturaria()"><i class="fa-solid fa-xmark"></i> Cancelar (Manter)</button>
+                <button class="btn-action-main" onclick="aceitarMudancaTinturaria()"><i class="fa-solid fa-check"></i> Sim, Alterar Destino</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalFases" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Fases Seguintes</h3>
+                <button class="btn-close" onclick="fecharModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="fase-section">
+                    <h4>2ª Fase (Acabamentos)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                        <div class="form-group"><label>Guia</label><input type="text" id="m_f2_guia" class="grid-input"></div>
+                        <div class="form-group"><label>Envio</label><input type="date" id="m_f2_envio" class="grid-input" title="Duplo-clique para a data de hoje" ondblclick="preencherDataHoje(this)"></div>
+                        <div class="form-group"><label>Receção</label><input type="date" id="m_f2_rececao" class="grid-input" title="Duplo-clique para a data de hoje" ondblclick="preencherDataHoje(this)"></div>
+                    </div>
+                    <textarea id="m_f2_obs" class="grid-input" rows="2" placeholder="Observações..."></textarea>
+                </div>
+                <div class="fase-section" style="margin-top:20px;">
+                    <h4>3ª Fase (Processos Finais)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                        <div class="form-group"><label>Guia</label><input type="text" id="m_f3_guia" class="grid-input"></div>
+                        <div class="form-group"><label>Envio</label><input type="date" id="m_f3_envio" class="grid-input" title="Duplo-clique para a data de hoje" ondblclick="preencherDataHoje(this)"></div>
+                        <div class="form-group"><label>Receção</label><input type="date" id="m_f3_rececao" class="grid-input" title="Duplo-clique para a data de hoje" ondblclick="preencherDataHoje(this)"></div>
+                    </div>
+                    <textarea id="m_f3_obs" class="grid-input" rows="2" placeholder="Observações..."></textarea>
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 25px; display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-subtle" onclick="fecharModal()">Cancelar</button>
+                <button class="btn-action-main" style="background: var(--color-ok); border:none; box-shadow: 0 4px 15px rgba(112, 173, 71, 0.3);" onclick="guardarModalFases()"><i class="fa-solid fa-floppy-disk"></i> Guardar Atualizações</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalNovaExpedicao" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px; width: 95%;">
+            <div class="modal-header">
+                <h3 id="titulo-modal-expedicao"><i class="fa-solid fa-boxes-stacked"></i> Adicionar Partidas</h3>
+                <button class="btn-close" onclick="fecharModalNovaExpedicao()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 25px; background: rgba(0, 168, 255, 0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(0, 168, 255, 0.2);">
+                    <label style="color: var(--jway-blue); font-size: 0.9rem;">1. Primeiro, procure o Cliente</label>
+                    <select id="novo_exp_cliente" class="grid-input" style="font-size: 1rem; padding: 10px; margin-top: 5px; font-weight: bold;" onchange="renderizarOfsPendentes()">
+                    </select>
+                </div>
+                <div id="container_ofs_pendentes" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;"></div>
+            </div>
+            <div style="text-align: right; margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-subtle" onclick="fecharModalNovaExpedicao()">Cancelar</button>
+                <button class="btn-action-main" onclick="avancarNovoLote()">Avançar com a Seleção <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEditLote" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="tituloModalEdit">Nova(s) Partida(s)</h3>
+                <button class="btn-close" onclick="fecharModalEditLote()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit_lote_id">
+                <input type="hidden" id="is_new_lote" value="false">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>Encomendas (OFs) <span style="color:var(--color-warn); font-size:0.6rem;"><i class="fa-solid fa-lock"></i> BLOQUEADO</span></label>
+                        <textarea id="edit_lote_encs" class="grid-input" rows="4" readonly style="resize: none; text-align: left; padding-left: 10px; font-weight: bold;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Modelos / Refs <span style="color:var(--color-warn); font-size:0.6rem;"><i class="fa-solid fa-lock"></i> BLOQUEADO</span></label>
+                        <textarea id="edit_lote_modelo" class="grid-input" rows="4" readonly style="resize: none; text-align: left; padding-left: 10px; font-weight: bold;"></textarea>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>Cliente <span style="color:var(--color-warn); font-size:0.6rem;"><i class="fa-solid fa-lock"></i> BLOQUEADO</span></label>
+                        <input type="text" id="edit_lote_cliente" class="grid-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Cor <span style="color:var(--color-warn); font-size:0.6rem;"><i class="fa-solid fa-lock"></i> BLOQUEADO</span></label>
+                        <input type="text" id="edit_lote_cor" class="grid-input" readonly>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label style="color:var(--jway-blue);">Tinturaria Destino</label>
+                        <select id="edit_lote_tinturaria" class="grid-input" onchange="verificarMudancaTinturaria(this)" style="font-weight: bold;"></select>
+                        <input type="hidden" id="original_tinturaria">
+                    </div>
+                    <div class="form-group">
+                        <label>Código Cor <span style="color:#aaa; font-size:0.6rem;">(Opcional)</span></label>
+                        <input type="text" id="edit_lote_codcor" class="grid-input" placeholder="Ex: BO-26-ESPS">
+                    </div>
+                    <div class="form-group">
+                        <label>Preço (€/Kg) <span style="color:#aaa; font-size:0.6rem;">(Opcional)</span></label>
+                        <input type="number" id="edit_lote_preco" class="grid-input" placeholder="0.00" step="any">
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: right; margin-top: 25px; display:flex; gap:10px; justify-content:flex-end;">
+                <button class="btn-subtle" onclick="fecharModalEditLote()">Cancelar</button>
+                <button class="btn-action-main" onclick="guardarLoteEditado()"><i class="fa-solid fa-floppy-disk"></i> Gravar Partida</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="header-brand">
+            <img src="src/assets/images/jwayseamlessflow.png" alt="Jway Logo" class="header-logo">
+            <h1 class="header-title">Mapa de Partidas Tinturaria</h1>
+        </div>
+        <div class="user-nav-panel">
+            <div id="live-clock" class="live-clock">A carregar hora...</div>
+            <div class="user-badge-box">
+                <div id="topbar-avatar-tinturaria" class="topbar-user-avatar"><i class="fa-solid fa-user" style="font-size:0.8rem; opacity:0.5;"></i></div>
+                <div class="user-info-text">
+                    <span id="logged-user-name" style="font-size: 0.85rem; font-weight: 800; color: white;"></span>
+                    <span id="logged-user-category" style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase;"></span>
+                </div>
+                <button class="btn-primary btn-logout-standard" onclick="fazerLogout()">Sair <i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-bar" style="margin-bottom: 20px;">
+        <div class="menu-dropdown-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-left: auto;">
+                        <button class="btn-modern btn-topbar btn-print-map" onclick="window.abrirImpressaoMapaTinturaria()"><i class="fa-solid fa-print"></i> Imprimir Mapa</button>
+            <button id="btn-navegacao" class="btn-modern btn-topbar btn-topbar-icon" onclick="toggleMenuNav(event)">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <div id="menu-nav-dropdown" class="menu-dropdown"></div>
+        </div>
+    </div>
+
+    <div id="kpi-cards-container" class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-card-title" id="title-kpi-env"><i class="fa-solid fa-truck-fast"></i> Kg Enviados</div>
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+                <div class="kpi-card-value" id="kpi-env-mes" style="color: var(--color-warn);">0 Kg</div>
+            </div>
+            <div class="kpi-card-sub" id="kpi-env-mes-sub">0 Partidas</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-title" id="title-kpi-rec"><i class="fa-solid fa-circle-check"></i> Kg Recebidos</div>
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+                <div class="kpi-card-value" id="kpi-rec-mes" style="color: var(--color-ok);">0 Kg</div>
+            </div>
+            <div class="kpi-card-sub" id="kpi-rec-mes-sub">0 Partidas</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-title"><i class="fa-solid fa-hourglass-half"></i> Partidas Pendentes</div>
+            <div class="kpi-card-value" id="kpi-pendentes" style="color: white;">0</div>
+            <div class="kpi-card-sub" id="kpi-pendentes-sub">Kg por enviar</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-card-title" id="title-kpi-lead"><i class="fa-solid fa-stopwatch"></i> Lead Time Médio</div>
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+                <div class="kpi-card-value" id="kpi-leadtime" style="color: var(--jway-blue);">0 Dias</div>
+            </div>
+            <div class="kpi-card-sub" id="kpi-leadtime-sub">Apenas dias úteis</div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-top">
+            <div class="filters-left">
+                <div class="search-wrapper">
+                    <span class="search-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="search" id="pesquisa" class="search-input" placeholder="Pesquisar Cliente, Cor, Guia, OF..." oninput="renderizarTabela()">
+                </div>
+                <select id="filtro-estado" class="filter-select" onchange="window.setFiltroEstado(this.value)">
+                    <option value="ANDAMENTO">Em Andamento</option>
+                    <option value="CONCLUIDO">Concluídas</option>
+                    <option value="ALL">Todas as Produções</option>
+                </select>
+            </div>
+            <div class="filters-right">
+                <button class="btn-action-main btn-no-glow admin-only" onclick="abrirModalNovaExpedicao()"><i class="fa-solid fa-boxes-stacked"></i> Adicionar Partidas</button>
+            </div>
+        </div>
+        
+        <div class="toolbar-bottom">
+            <div class="toolbar-filters-tinturaria" id="botoes-tinturaria">
+                </div>
+            
+            <div class="tools-group">
+                <button class="btn-subtle" onclick="toggleAllRows()" title="Abrir/Fechar todas as linhas"><i class="fa-solid fa-up-down"></i> Expandir Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="tinturaria-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;"></th>
+                    <th>Enc(s)</th>
+                    <th>Cliente</th>
+                    <th>Modelo(s)</th>
+                    <th>Cor & Código</th>
+                    <th>Tinturaria</th>
+                    <th>Partidas</th>
+                    <th style="width: 200px;">Progresso</th>
+                    <th>Peso Total</th>
+                    <th class="col-acoes admin-only" style="width: 120px;">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="lista-corpo"></tbody>
+            </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 25px; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+        <button class="btn-faturas btn-export-ok" onclick="exportarParaExcel()"><i class="fa-solid fa-chart-column"></i> Exportar Tabela (Excel)</button>
+    </div>
+
+    <div id="dashboards-wrapper">
+        
+        <div class="summary-dashboard" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap:10px;">
+                <h3 style="margin-bottom: 0;"><i class="fa-solid fa-list-check"></i> Carga Pendente Prevista por Tinturaria</h3>
+            </div>
+            <div class="table-wrapper" style="padding-bottom:0;">
+                <table class="resumo-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Tinturaria Destino</th>
+                            <th>Quantidade Prevista (Kg)</th>
+                            <th>Nº de Partidas Pendentes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-previsao-corpo"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="summary-dashboard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap:10px;">
+                <h3 style="margin-bottom: 0;"><i class="fa-solid fa-chart-bar"></i> Balanço Mensal de Produção</h3>
+                <div style="display: flex; gap: 10px;">
+                    <select id="filtro_ano_tinturaria" class="filter-select select-compact-accent" onchange="renderizarResumosTinturaria()"></select>
+                </div>
+            </div>
+            <div class="table-wrapper" style="padding-bottom:0;">
+                <table id="tabela-resumo-tinturaria" class="resumo-table"></table>
+            </div>
+        </div>
+
+        <div class="summary-dashboard">
+            <h3><i class="fa-solid fa-gauge-high"></i> Métricas de Performance por Tinturaria</h3>
+            <div class="table-wrapper" style="padding-bottom:0;">
+                <table class="resumo-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Tinturaria</th>
+                            <th>Lead Time Mín.</th>
+                            <th>Lead Time Máx.</th>
+                            <th>Lead Time Médio</th>
+                            <th>Remontas / Acertos (2ª+ Fases)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-metrics-corpo"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="summary-dashboard" style="align-items: center; text-align: center;">
+            <h3 style="align-self: flex-start;"><i class="fa-solid fa-industry"></i> Peso Global por Tinturaria</h3>
+            <div style="height: 280px; width: 100%; max-width: 500px; margin: 0 auto; display: flex; justify-content: center;"><canvas id="graficoPieTinturaria"></canvas></div>
+        </div>
+
+        <div class="summary-dashboard">
+            <h3><i class="fa-solid fa-building-user"></i> Peso por Cliente/Tinturaria</h3>
+            <div id="container-graficos-clientes" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; width: 100%; margin-top: 20px;"></div>
+        </div>
+
+    </div>
+
+    <button class="btn-back-to-top" id="btnBackTop" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">↑</button>
+
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <div class="site-footer">
+        <div>&copy; 2026 Jway Nexus | Desenvolvido por João Carvalho | Todos os direitos reservados | Mapa de Partidas Tinturaria</div>
+        <img src="src/assets/images/Alecgroup.png" alt="Alecgroup Logo" class="footer-logo">
+    </div>
+
+    <script>
+        // ============================================================================
+        // SISTEMA DE PERMISSÕES E SESSÃO
+        // ============================================================================
+        const sess = window.JwaySession.get();
+        const userName = sess.nome;
+        const userCatRaw = sess.categoria || 'Operador (Maquinista)';
+        if (!userName) {
+            window.location.replace('index.html');
+        }
+
+        function normalizarTextoCategoria(cat) {
+            return String(cat || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+
+        function canonicalizarCategoria(cat) {
+            const n = normalizarTextoCategoria(cat);
+            if (n.includes('admin')) return 'Administrador';
+            if (n.includes('gestao')) return 'Administrador';
+            if (n.includes('comercial')) return 'Comercial';
+            if (n.includes('tecnico') && n.includes('desenho')) return 'Técnico de Desenho';
+            if (n.includes('assistente')) return 'Assistente de Produção';
+            if (n.includes('auxiliar')) return 'Assistente de Produção';
+            if (n.includes('operador') || n.includes('maquinista') || n.includes('fabrica')) return 'Operador (Maquinista)';
+            return String(cat || 'Operador (Maquinista)').trim();
+        }
+
+        const userCat = canonicalizarCategoria(userCatRaw);
+        if (userCatRaw !== userCat) {
+            window.JwaySession.setCategory(userCat);
+        }
+
+        const isAdminStorage = window.JwaySession.get().isAdmin;
+        window.isAdmin = isAdminStorage || userCat === 'Administrador';
+        if (!window.isAdmin) {
+            document.body.classList.add('not-admin');
+        }
+
+        const categoryColors = window.JwayCatColors;
+
+        function getCategoriaEmoji(cat) {
+            if (cat === 'Técnico de Desenho') return '<i class="fa-solid fa-pen-ruler"></i>';
+            if (cat === 'Operador (Maquinista)') return '<i class="fa-solid fa-gears"></i>';
+            if (cat === 'Assistente de Produção') return '<i class="fa-solid fa-clipboard-list"></i>';
+            if (cat === 'Comercial') return '<i class="fa-solid fa-briefcase"></i>';
+            if (cat === 'Administrador') return '<i class="fa-solid fa-shield-halved"></i>';
+            return '<i class="fa-solid fa-user"></i>';
+        }
+
+        function updateClock() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) clockEl.innerText = new Date().toLocaleDateString('pt-PT', options).toUpperCase();
+        }
+
+        function fazerLogout() {
+            jwayAuth.signOut().catch(() => {});
+            window.JwaySession.clear();
+            window.location.replace('index.html');
+        }
+
+        window.toggleMenuNav = function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('menu-nav-dropdown');
+            if (menu) menu.classList.toggle('show');
+        };
+
+        window.addEventListener('click', function(e) {
+            const menu = document.getElementById('menu-nav-dropdown');
+            if (menu && menu.classList.contains('show') && !menu.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+
+        window.showToast = function(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success'
+                ? '<i class="fa-solid fa-circle-check"></i>'
+                : type === 'error'
+                    ? '<i class="fa-solid fa-circle-xmark"></i>'
+                    : '<i class="fa-solid fa-circle-info"></i>';
+            toast.innerHTML = `<span style="font-size:1.2rem;">${icon}</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        window.uiConfirm = function(message, title = 'Confirmar ação') {
+            return new Promise((resolve) => {
+                let overlay = document.getElementById('ui-confirm-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'ui-confirm-overlay';
+                    overlay.className = 'modal-overlay';
+                    overlay.style.zIndex = '100002';
+                    overlay.innerHTML = `
+                        <div class="modal-content" style="max-width: 460px; text-align: center;">
+                            <div style="font-size: 2.2rem; color: var(--color-warn); margin-bottom: 10px;"><i class="fa-solid fa-circle-question"></i></div>
+                            <h3 id="ui-confirm-title" style="margin-top: 0;"></h3>
+                            <p id="ui-confirm-message" style="color:#ddd; line-height: 1.5; white-space: pre-line;"></p>
+                            <div style="display:flex; gap:10px; justify-content:center; margin-top: 20px; flex-wrap: wrap;">
+                                <button id="ui-confirm-cancel" class="btn-subtle"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+                                <button id="ui-confirm-ok" class="btn-action-main"><i class="fa-solid fa-check"></i> Confirmar</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+
+                const titleEl = document.getElementById('ui-confirm-title');
+                const msgEl = document.getElementById('ui-confirm-message');
+                const cancelBtn = document.getElementById('ui-confirm-cancel');
+                const okBtn = document.getElementById('ui-confirm-ok');
+
+                if (titleEl) titleEl.textContent = title;
+                if (msgEl) msgEl.textContent = message;
+
+                const fechar = (valor) => {
+                    overlay.style.display = 'none';
+                    resolve(valor);
+                };
+
+                cancelBtn.onclick = () => fechar(false);
+                okBtn.onclick = () => fechar(true);
+                overlay.onclick = (e) => { if (e.target === overlay) fechar(false); };
+                overlay.style.display = 'flex';
+            });
+        };
+
+        // --- SCROLL E PREVENÇÃO UI ---
+        window.addEventListener('scroll', () => {
+            const btnTop = document.getElementById('btnBackTop');
+            if (btnTop) btnTop.classList.toggle('show', window.scrollY > 400);
+
+            const wrapper = document.querySelector('.table-wrapper');
+            const ths = document.querySelectorAll('#tinturaria-table > thead > tr > th');
+            if (!wrapper || ths.length === 0) return;
+            const rect = wrapper.getBoundingClientRect();
+            const headerHeight = ths[0].offsetHeight;
+            let offset = 0;
+            if (rect.top < 0) {
+                offset = Math.abs(rect.top);
+                const maxOffset = rect.height - headerHeight;
+                if (offset > maxOffset) offset = maxOffset;
+            }
+            ths.forEach(th => th.style.transform = `translateY(${offset}px)`);
+        });
+
+        window.addEventListener('beforeprint', () => { document.querySelectorAll('th').forEach(th => { th.style.transform = 'none'; }); });
+
+        document.addEventListener('keydown', function(e) { 
+            if (e.key === "Escape") { 
+                fecharModal(); 
+                fecharModalEditLote(); 
+                fecharModalNovaExpedicao(); 
+                cancelarMudancaTinturaria(); 
+            } 
+        });
+        document.getElementById('modalFases').addEventListener('click', function(e) { if(e.target === this) fecharModal(); });
+        document.getElementById('modalEditLote').addEventListener('click', function(e) { if(e.target === this) fecharModalEditLote(); });
+        document.getElementById('modalNovaExpedicao').addEventListener('click', function(e) { if(e.target === this) fecharModalNovaExpedicao(); });
+
+        window.isUserTyping = false; window.pendingRender = false;
+        document.addEventListener('focusin', function(e) { 
+            if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName) && e.target.id !== 'pesquisa') {
+                window.isUserTyping = true; 
+            }
+        });
+        document.addEventListener('focusout', function(e) {
+            setTimeout(() => {
+                const active = document.activeElement;
+                if (active && ['INPUT','SELECT','TEXTAREA'].includes(active.tagName)) return; 
+                window.isUserTyping = false;
+                if(window.pendingRender) { window.pendingRender = false; refreshAll(); }
+            }, 150);
+        });
+
+        function isDateValid(dStr) { 
+            if (!dStr || typeof dStr !== 'string' || dStr.trim() === '') return false; 
+            const d = new Date(dStr); 
+            return !isNaN(d.getTime()); 
+        }
+
+        // --- SISTEMA CLICK TO COPY E AUTO-DATA (QOL) ---
+        window.copiarTexto = function(texto, event) {
+            if(event) event.stopPropagation(); 
+            if(!texto || texto === '--') return;
+            navigator.clipboard.writeText(texto).then(() => {
+                showToast("Copiado: " + texto);
+            });
+        }
+
+        window.preencherDataHoje = function(el) {
+            if (!window.isAdmin) return;
+            const hoje = new Date().toISOString().split('T')[0];
+            el.value = hoje;
+            guardarModalFases(); 
+        }
+
+        // --- FUNÇÕES DE SEGURANÇA DE DADOS (ANTI-CRASH) ---
+        function getPartidasArray(lote) {
+            if (!lote || !lote.partidas) return [];
+            if (Array.isArray(lote.partidas)) return lote.partidas;
+            if (typeof lote.partidas === 'object') return Object.values(lote.partidas);
+            return [];
+        }
+
+        function getEncomendasArray(lote) {
+            if (!lote || !lote.encomendas) return [];
+            if (Array.isArray(lote.encomendas)) return lote.encomendas;
+            if (typeof lote.encomendas === 'object') return Object.values(lote.encomendas);
+            if (typeof lote.encomendas === 'string') return lote.encomendas.split(',');
+            return [String(lote.encomendas)];
+        }
+
+        // --- MEMÓRIA DE FILTROS E VARIÁVEIS GLOBAIS ---
+        window.currentTintFilter = localStorage.getItem('filtro_tint_mapa') || 'ALL';
+        
+        function carregarFiltrosSalvos() {
+            const savedEst = localStorage.getItem('filtro_estado_mapa');
+            if (savedEst) document.getElementById('filtro-estado').value = savedEst;
+        }
+
+        window.setFiltroEstado = function(val) {
+            localStorage.setItem('filtro_estado_mapa', val);
+            renderizarTabela();
+        }
+
+        window.setFiltroTinturaria = function(val) {
+            window.currentTintFilter = val;
+            localStorage.setItem('filtro_tint_mapa', val);
+            renderizarBotoesTinturaria();
+            renderizarTabela();
+        }
+
+        function renderizarBotoesTinturaria() {
+            const container = document.getElementById('botoes-tinturaria');
+            if(!container) return;
+            
+            let html = `<button class="btn-tint-filter ${window.currentTintFilter === 'ALL' ? 'active' : ''}" onclick="setFiltroTinturaria('ALL')">🏢 Todas as Tinturarias</button>`;
+            
+            tinturariasDefinidas.forEach(t => {
+                let isActive = window.currentTintFilter === t;
+                html += `<button class="btn-tint-filter ${isActive ? 'active' : ''}" onclick="setFiltroTinturaria('${t}')">${t}</button>`;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        const database = jwayDB;
+
+        renderNavigationMenu(window.JwaySession.get().isAdmin === true);
+        const nameEl = document.getElementById('logged-user-name');
+        const catEl = document.getElementById('logged-user-category');
+        if (nameEl) nameEl.innerText = userName;
+        if (catEl) {
+            catEl.innerHTML = `${getCategoriaEmoji(userCat)} ${userCat}`;
+            catEl.style.color = (categoryColors[userCat] || {}).color || '#ffffff';
+        }
+        const avStyle = categoryColors[userCat] || { color: '#00a8ff', bg: 'rgba(0,168,255,0.12)', border: 'rgba(0,168,255,0.35)' };
+        const avPartes = userName.trim().split(/\s+/);
+        const avInitials = avPartes.length >= 2 ? (avPartes[0][0] + avPartes[avPartes.length - 1][0]).toUpperCase() : (avPartes[0][0] || '?').toUpperCase();
+        const avEl = document.getElementById('topbar-avatar-tinturaria');
+        if (avEl) {
+            avEl.textContent = avInitials;
+            avEl.style.background = avStyle.bg;
+            avEl.style.borderColor = avStyle.border;
+            avEl.style.color = avStyle.color;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let lotes = [];
+        let tinturariasDefinidas = []; 
+        let encomendasBD = {}; 
+        let pendingEncomendasByClient = {};
+        let linhasExpandidas = new Set();
+        let curModalLoteId = null, curModalPartidaIdx = null;
+        let chartPieTinturaria = null;
+        window.chartsClientes = [];
+
+        carregarFiltrosSalvos(); 
+
+        // 1. CARREGAR DEFINIÇÕES DE TINTURARIAS
+        database.ref('dados/mapa_encomendas/definicoes/tinturarias').on('value', snap => {
+            tinturariasDefinidas = [];
+            snap.forEach(child => {
+                let val = child.val();
+                let nome = typeof val === 'string' ? val : (val.nome || child.key);
+                tinturariasDefinidas.push(nome);
+            });
+            tinturariasDefinidas.sort();
+            if (!window.isUserTyping) { 
+                renderizarBotoesTinturaria(); 
+                atualizarDropdownModalTinturaria(); 
+            }
+        });
+
+        // 2. CARREGAR ENCOMENDAS
+        database.ref('dados/mapa_encomendas/encomendas').on('value', snap => {
+            encomendasBD = snap.val() || {};
+        });
+
+        // --- SISTEMA ANTI-LAG (DEBOUNCE DE RENDERIZAÇÃO) ---
+        let debounceTimer;
+        function debouncedRefreshAll() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if (window.isUserTyping) {
+                    window.pendingRender = true;
+                } else {
+                    refreshAll();
+                }
+            }, 300); 
+        }
+
+        // 3. CARREGAR LOTES DE TINTURARIA
+        database.ref('dados/mapa_tinturaria/partidas').on('value', snap => {
+            document.getElementById('loader').style.display = 'none'; 
+            lotes = [];
+            snap.forEach(child => { lotes.push({ id: child.key, ...child.val() }); });
+            
+            try {
+                debouncedRefreshAll();
+            } catch(e) {
+                console.error("Aviso: Falha na renderização.", e);
+            }
+        });
+
+        function refreshAll() {
+            renderizarBotoesTinturaria();
+            atualizarDropdownModalTinturaria();
+            renderizarTabela();
+            renderizarResumosTinturaria();
+            calcularKPIsGlobais();
+        }
+
+        // ============================================================================
+        // KPIs COM NOME DO MÊS E COMPARAÇÃO
+        // ============================================================================
+        function getDiffHtml(atual, anterior, isLeadTime = false) {
+            if (anterior === 0) return `<span style="color:#aaa; font-size:0.65rem;">Sem dados mês ant.</span>`;
+            let diff = ((atual - anterior) / anterior) * 100;
+            let icon = diff >= 0 ? '▲' : '▼';
+            let color;
+            if (isLeadTime) { color = diff > 0 ? 'var(--color-danger)' : 'var(--color-ok)'; } 
+            else { color = diff >= 0 ? 'var(--color-ok)' : 'var(--color-danger)'; }
+            return `<span style="color:${color}; font-size:0.75rem; font-weight:bold; margin-left: 8px;">${icon} ${Math.abs(diff).toFixed(1)}%</span>`;
+        }
+
+        function calcularKPIsGlobais() {
+            const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            const dataAtual = new Date();
+            const nomeMesAtual = mesesNomes[dataAtual.getMonth()];
+            const anoMesAtual = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
+
+            let dPrev = new Date();
+            dPrev.setMonth(dPrev.getMonth() - 1);
+            const anoMesAnterior = `${dPrev.getFullYear()}-${String(dPrev.getMonth() + 1).padStart(2, '0')}`;
+
+            document.getElementById('title-kpi-env').innerHTML = `<i class="fa-solid fa-truck-fast"></i> Kg Enviados (${nomeMesAtual})`;
+            document.getElementById('title-kpi-rec').innerHTML = `<i class="fa-solid fa-circle-check"></i> Kg Recebidos (${nomeMesAtual})`;
+            document.getElementById('title-kpi-lead').innerHTML = `<i class="fa-solid fa-stopwatch"></i> Lead Time Médio (${nomeMesAtual})`;
+
+            let kgEnviados = 0, partidasEnviadas = 0;
+            let kgRecebidos = 0, partidasRecebidas = 0;
+            let kgPendentes = 0, partidasPendentes = 0;
+            let somaLeadTimes = 0, contagemLeadTimes = 0;
+
+            let kgEnviadosAnt = 0, kgRecebidosAnt = 0;
+            let somaLeadTimesAnt = 0, contagemLeadTimesAnt = 0;
+
+            lotes.forEach(lote => {
+                let partidasArray = getPartidasArray(lote);
+
+                partidasArray.forEach(p => {
+                    let peso = parseFloat(String(p.peso || '0').replace(',', '.')) || 0;
+                    
+                    if (isDateValid(p.fase1?.envio)) {
+                        if (p.fase1.envio.startsWith(anoMesAtual)) {
+                            kgEnviados += peso;
+                            partidasEnviadas++;
+                            let lt = calcularLeadtimeInt(p);
+                            if (lt !== null) { somaLeadTimes += lt; contagemLeadTimes++; }
+                        } else if (p.fase1.envio.startsWith(anoMesAnterior)) {
+                            kgEnviadosAnt += peso;
+                            let lt = calcularLeadtimeInt(p);
+                            if (lt !== null) { somaLeadTimesAnt += lt; contagemLeadTimesAnt++; }
+                        }
+                    }
+                    
+                    if (isDateValid(p.fase1?.rececao)) {
+                        if (p.fase1.rececao.startsWith(anoMesAtual)) {
+                            kgRecebidos += peso;
+                            partidasRecebidas++;
+                        } else if (p.fase1.rececao.startsWith(anoMesAnterior)) {
+                            kgRecebidosAnt += peso;
+                        }
+                    }
+                    
+                    if (p.enviado !== true) {
+                        kgPendentes += peso;
+                        partidasPendentes++;
+                    }
+                });
+            });
+
+            document.getElementById('kpi-env-mes').innerHTML = `${kgEnviados.toFixed(1)} Kg ${getDiffHtml(kgEnviados, kgEnviadosAnt)}`;
+            document.getElementById('kpi-env-mes-sub').innerText = `${partidasEnviadas} Partida(s) enviadas`;
+            
+            document.getElementById('kpi-rec-mes').innerHTML = `${kgRecebidos.toFixed(1)} Kg ${getDiffHtml(kgRecebidos, kgRecebidosAnt)}`;
+            document.getElementById('kpi-rec-mes-sub').innerText = `${partidasRecebidas} Partida(s) recebidas`;
+            
+            document.getElementById('kpi-pendentes').innerText = `${partidasPendentes}`;
+            document.getElementById('kpi-pendentes-sub').innerText = `${kgPendentes.toFixed(1)} Kg por enviar`;
+            
+            let leadMedio = contagemLeadTimes > 0 ? parseFloat((somaLeadTimes / contagemLeadTimes).toFixed(1)) : 0;
+            let leadMedioAnt = contagemLeadTimesAnt > 0 ? parseFloat((somaLeadTimesAnt / contagemLeadTimesAnt).toFixed(1)) : 0;
+            document.getElementById('kpi-leadtime').innerHTML = `${leadMedio} Dias ${getDiffHtml(leadMedio, leadMedioAnt, true)}`;
+        }
+
+        window.toggleAllRows = function() {
+            const isExpanding = linhasExpandidas.size === 0;
+            const linhasVisiveis = Array.from(document.querySelectorAll('.master-row')).map(tr => tr.id.replace('master-', ''));
+            
+            if (isExpanding) {
+                linhasVisiveis.forEach(id => linhasExpandidas.add(id));
+            } else {
+                linhasExpandidas.clear();
+            }
+            renderizarTabela();
+        }
+
+        window.exportarParaExcel = function() {
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "Lote ID;Encomendas (OFs);Cliente;Modelos;Cor;Cod Cor;Tinturaria;Total Partidas;Enviado(%);Recebido(%);Peso Total(Kg)\n";
+
+            const linhasTr = document.querySelectorAll('.master-row');
+            linhasTr.forEach(tr => {
+                const tds = tr.querySelectorAll('td');
+                if (tds.length < (window.isAdmin ? 10 : 9)) return;
+                
+                let id = tr.id.replace('master-', '');
+                let ofs = tds[1].innerText.replace(/\n/g, ' - '); 
+                let cli = tds[2].innerText;
+                let mods = tds[3].innerText.replace(/\n/g, ' - ');
+                let corSplit = tds[4].innerText.split('\n');
+                let cor = corSplit[0] ? corSplit[0].trim() : '';
+                let cod = corSplit[1] ? corSplit[1].trim() : '';
+                let tint = tds[5].innerText;
+                let part = tds[6].innerText.replace(' Partida(s)', '').replace('+Fases', '').trim();
+                let spanProg = tds[7].querySelectorAll('.prog-header span:last-child');
+                let pEnv = spanProg[0] ? spanProg[0].innerText : '0%';
+                let pRec = spanProg[1] ? spanProg[1].innerText : '0%';
+                let peso = tds[8].innerText.replace(' Kg', '').trim();
+
+                let row = `"${id}";"${ofs}";"${cli}";"${mods}";"${cor}";"${cod}";"${tint}";"${part}";"${pEnv}";"${pRec}";"${peso}"`;
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `mapa_tinturaria_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ============================================================================
+        // CÁLCULO DE DIAS ÚTEIS E FERIADOS (PORTUGAL)
+        // ============================================================================
+        function getFeriadosPortugal(ano) {
+            if (!ano || isNaN(ano)) return [];
+            const feriados = [`${ano}-01-01`, `${ano}-04-25`, `${ano}-05-01`, `${ano}-06-10`, `${ano}-08-15`, `${ano}-10-05`, `${ano}-11-01`, `${ano}-12-01`, `${ano}-12-08`, `${ano}-12-25`];
+            const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100;
+            const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+            const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const m = Math.floor((a + 11 * h + 22 * l) / 451);
+            const mes = Math.floor((h + l - 7 * m + 114) / 31);
+            const dia = ((h + l - 7 * m + 114) % 31) + 1;
+            
+            const pascoa = new Date(ano, mes - 1, dia);
+            const sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
+            const corpoDeus = new Date(pascoa); corpoDeus.setDate(pascoa.getDate() + 60);
+
+            const formata = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            feriados.push(formata(sextaSanta));
+            feriados.push(formata(corpoDeus));
+            return feriados;
+        }
+
+        function calcularLeadtimeInt(partida) {
+            let dIni = partida.fase1?.envio;
+            if (!isDateValid(dIni)) return null;
+
+            let partsIni = dIni.split('-');
+            let start = new Date(partsIni[0], partsIni[1] - 1, partsIni[2]);
+
+            let endDates = [];
+            if (isDateValid(partida.fase1?.rececao)) endDates.push(new Date(partida.fase1.rececao));
+            if (isDateValid(partida.fase2?.rececao)) endDates.push(new Date(partida.fase2.rececao));
+            if (isDateValid(partida.fase3?.rececao)) endDates.push(new Date(partida.fase3.rececao));
+
+            if (endDates.length === 0) return null; 
+            
+            let maxEnd = new Date(Math.max(...endDates));
+
+            if (start >= maxEnd) return 0;
+
+            let feriados = new Set([...getFeriadosPortugal(start.getFullYear()), ...getFeriadosPortugal(maxEnd.getFullYear())]);
+            
+            let days = 0;
+            let current = new Date(start);
+            const formataDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+            while (current < maxEnd) {
+                current.setDate(current.getDate() + 1);
+                let dayOfWeek = current.getDay();
+                let dateStr = formataDate(current);
+
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !feriados.has(dateStr)) {
+                    days++;
+                }
+            }
+            return days;
+        }
+
+        // ============================================================================
+        // SISTEMA DE ADICIONAR PARTIDAS (AGRUPAMENTO) COM FIX OF+COR
+        // ============================================================================
+        window.fecharModalNovaExpedicao = function() { document.getElementById('modalNovaExpedicao').style.display = 'none'; }
+        
+        window.abrirModalNovaExpedicao = function() {
+            if(!window.isAdmin) return;
+            const ofsCoresEmTinturaria = new Set();
+            lotes.forEach(lote => {
+                const corLote = String(lote.cor || '').trim().toUpperCase();
+                let encomendasArr = getEncomendasArray(lote);
+                encomendasArr.forEach(of => ofsCoresEmTinturaria.add(`${String(of).trim().toUpperCase()}_${corLote}`));
+            });
+
+            pendingEncomendasByClient = {};
+            let hasPending = false;
+            
+            Object.values(encomendasBD).forEach(enc => {
+                if (!enc.of || !enc.cliente || !enc.cor) return;
+                if (String(enc.estado).toUpperCase() === "ENVIADO" || String(enc.estado).toUpperCase() === "FINALIZADO") return;
+                
+                const ofAtual = String(enc.of).trim().toUpperCase();
+                const corAtual = String(enc.cor).trim().toUpperCase();
+                const chaveUnica = `${ofAtual}_${corAtual}`;
+                
+                if (ofsCoresEmTinturaria.has(chaveUnica)) return; 
+
+                hasPending = true;
+                if (!pendingEncomendasByClient[enc.cliente]) pendingEncomendasByClient[enc.cliente] = {};
+                if (!pendingEncomendasByClient[enc.cliente][enc.cor]) pendingEncomendasByClient[enc.cliente][enc.cor] = [];
+                
+                pendingEncomendasByClient[enc.cliente][enc.cor].push(enc);
+            });
+
+            const selectCliente = document.getElementById('novo_exp_cliente');
+            selectCliente.innerHTML = '<option value="">- Escolha um Cliente da Lista -</option>';
+            
+            if (hasPending) {
+                Object.keys(pendingEncomendasByClient).sort().forEach(cli => {
+                    selectCliente.innerHTML += `<option value="${cli}">${cli}</option>`;
+                });
+                document.getElementById('container_ofs_pendentes').innerHTML = '<div style="padding: 20px; color:#aaa; text-align:center;">Selecione um cliente acima para ver as suas OFs disponíveis.</div>';
+            } else {
+                document.getElementById('container_ofs_pendentes').innerHTML = '<div style="padding: 20px; color:var(--color-ok); text-align:center; font-weight:bold;">🎉 Sem encomendas pendentes. Todas as OFs ativas já se encontram na Tinturaria!</div>';
+            }
+            
+            document.getElementById('modalNovaExpedicao').style.display = 'flex';
+        }
+
+        window.renderizarOfsPendentes = function() {
+            const cliente = document.getElementById('novo_exp_cliente').value;
+            const container = document.getElementById('container_ofs_pendentes');
+            container.innerHTML = '';
+            
+            if (!cliente) return;
+            
+            const cores = pendingEncomendasByClient[cliente];
+            
+            Object.keys(cores).sort().forEach(cor => {
+                const encs = cores[cor];
+                
+                let htmlCor = `
+                    <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 10px 0; color: var(--jway-blue); border-bottom: 1px solid rgba(0, 168, 255, 0.2); padding-bottom: 5px;"><i class='fa-solid fa-palette'></i> Cor: ${cor}</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                `;
+                
+                encs.forEach(enc => {
+                    htmlCor += `
+                        <label class="lista-ofs-item">
+                            <input type="checkbox" class="cb-nova-exp" value="${enc.of}" data-cor="${enc.cor}" data-ref="${enc.ref || ''}" data-tint="${enc.tinturaria || ''}">
+                            <span style="font-weight:bold; color: white; width: 120px;">OF: ${enc.of}</span>
+                            <span style="color:#aaa; flex: 1;">Modelo/Art: <span style="color:white;">${enc.ref || '--'}</span></span>
+                            <span style="color:#777; font-size:0.8rem;">${enc.desc || ''}</span>
+                        </label>
+                    `;
+                });
+                
+                htmlCor += `</div></div>`;
+                container.innerHTML += htmlCor;
+            });
+        }
+
+        window.avancarNovoLote = function() {
+            const cliente = document.getElementById('novo_exp_cliente').value;
+            if (!cliente) { showToast("Selecione um cliente no Passo 1.", 'error'); return; }
+            
+            const checkboxes = document.querySelectorAll('.cb-nova-exp:checked');
+            if (checkboxes.length === 0) { showToast("Selecione pelo menos uma OF das opcoes abaixo para criar a guia.", 'error'); return; }
+            
+            let coresSelecionadas = new Set();
+            let ofs = [];
+            let refs = new Set();
+            let tintSug = "";
+            
+            checkboxes.forEach(cb => {
+                coresSelecionadas.add(cb.getAttribute('data-cor'));
+                ofs.push(cb.value);
+                if (cb.getAttribute('data-ref')) refs.add(cb.getAttribute('data-ref'));
+                if (cb.getAttribute('data-tint') && !tintSug) tintSug = cb.getAttribute('data-tint'); 
+            });
+            
+            if (coresSelecionadas.size > 1) {
+                showToast("ATENCAO: selecionou OFs com cores diferentes. Apenas e possivel juntar encomendas com a mesma cor no mesmo lote.", 'error');
+                return;
+            }
+            
+            const cor = Array.from(coresSelecionadas)[0];
+            const ofsStr = ofs.join('\n'); 
+            const refsStr = Array.from(refs).join('\n');
+            
+            fecharModalNovaExpedicao();
+            document.getElementById('tituloModalEdit').innerHTML = "<i class='fa-solid fa-boxes-stacked'></i> Nova(s) Partida(s)";
+            document.getElementById('is_new_lote').value = "true"; 
+            document.getElementById('edit_lote_id').value = "";
+            
+            document.getElementById('edit_lote_encs').value = ofsStr;
+            document.getElementById('edit_lote_cliente').value = cliente;
+            document.getElementById('edit_lote_cor').value = cor;
+            document.getElementById('edit_lote_modelo').value = refsStr;
+            document.getElementById('edit_lote_codcor').value = "";
+            document.getElementById('edit_lote_preco').value = "";
+            
+            document.getElementById('original_tinturaria').value = tintSug;
+            
+            const selectTinturaria = document.getElementById('edit_lote_tinturaria');
+            selectTinturaria.value = ""; 
+            if (tintSug) {
+                for(let i=0; i<selectTinturaria.options.length; i++) {
+                    if (selectTinturaria.options[i].value.toLowerCase() === tintSug.toLowerCase()) {
+                        selectTinturaria.selectedIndex = i; break;
+                    }
+                }
+            }
+            document.getElementById('modalEditLote').style.display = 'flex';
+        }
+
+        // ============================================================================
+        // MODAL CUSTOMIZADO (AVISO MUDANÇA TINTURARIA)
+        // ============================================================================
+        let selectTinturariaPendiente = null;
+        let valorOriginalTinturaria = null;
+
+        window.verificarMudancaTinturaria = function(selectElement) {
+            const isNew = document.getElementById('is_new_lote').value === "true";
+            const original = document.getElementById('original_tinturaria').value;
+            
+            if (isNew && original && original.toLowerCase() !== selectElement.value.toLowerCase()) {
+                selectTinturariaPendiente = selectElement;
+                valorOriginalTinturaria = original;
+                
+                document.getElementById('confirmTinturariaOriginal').innerText = original;
+                document.getElementById('confirmTinturariaNova').innerText = selectElement.value;
+                document.getElementById('modalCustomConfirm').style.display = 'flex';
+            }
+        }
+
+        window.cancelarMudancaTinturaria = function() {
+            if (selectTinturariaPendiente && valorOriginalTinturaria) {
+                for(let i=0; i<selectTinturariaPendiente.options.length; i++) {
+                    if (selectTinturariaPendiente.options[i].value.toLowerCase() === valorOriginalTinturaria.toLowerCase()) {
+                        selectTinturariaPendiente.selectedIndex = i; break;
+                    }
+                }
+            }
+            document.getElementById('modalCustomConfirm').style.display = 'none';
+        }
+
+        window.aceitarMudancaTinturaria = function() {
+            document.getElementById('modalCustomConfirm').style.display = 'none';
+        }
+
+        // --- FUNÇÕES GERAIS ---
+        function atualizarDropdownModalTinturaria() {
+            const dropdown = document.getElementById('edit_lote_tinturaria');
+            if(!dropdown) return;
+            const v = dropdown.value; 
+            let html = '<option value="">- Selecione a Tinturaria -</option>';
+            tinturariasDefinidas.forEach(t => { html += `<option value="${t}" ${t===v?'selected':''}>${t}</option>`; });
+            dropdown.innerHTML = html;
+        }
+
+        function getProgressColor(perc) {
+            if (perc < 30) return { bg: 'var(--color-danger)', shadow: 'rgba(255, 71, 87, 0.5)' }; 
+            if (perc < 70) return { bg: 'var(--color-warn)', shadow: 'rgba(255, 192, 0, 0.5)' }; 
+            if (perc < 100) return { bg: 'var(--jway-blue)', shadow: 'rgba(0, 168, 255, 0.5)' }; 
+            return { bg: 'var(--color-ok)', shadow: 'rgba(112, 173, 71, 0.5)' }; 
+        }
+
+        // ============================================================================
+        // EXPANSÃO INDIVIDUAL DA GAVETA
+        // ============================================================================
+        window.toggleRow = function(loteId) {
+            const rowMaster = document.getElementById('master-' + loteId);
+            const rowDetail = document.getElementById('detail-' + loteId);
+            
+            if(!rowMaster || !rowDetail) return;
+
+            if(rowMaster.classList.contains('expanded')) {
+                rowMaster.classList.remove('expanded');
+                rowDetail.classList.remove('active');
+                linhasExpandidas.delete(loteId);
+            } else {
+                rowMaster.classList.add('expanded');
+                rowDetail.classList.add('active');
+                linhasExpandidas.add(loteId);
+            }
+        }
+
+        // ============================================================================
+        // RENDERIZAR A TABELA PRINCIPAL 
+        // ============================================================================
+        function renderizarTabela() {
+            const corpo = document.getElementById('lista-corpo');
+            const pesquisa = document.getElementById('pesquisa').value.toLowerCase();
+            const fTinturaria = window.currentTintFilter; 
+            const fEstado = document.getElementById('filtro-estado').value;
+
+            corpo.innerHTML = '';
+            
+            let tfoot = document.getElementById('lista-rodape');
+            if (!tfoot) {
+                tfoot = document.createElement('tfoot');
+                tfoot.id = 'lista-rodape';
+                document.getElementById('tinturaria-table').appendChild(tfoot);
+            }
+
+            if (lotes.length === 0) { 
+                corpo.innerHTML = `<tr><td colspan="${window.isAdmin ? 10 : 9}" style="text-align:center; padding:40px; opacity:0.5;">Sem expedições de momento. Clique em Adicionar Partidas.</td></tr>`; 
+                tfoot.style.display = 'none';
+                return; 
+            }
+
+            let lotesOrdenados = [...lotes].sort((a, b) => {
+                let encA = getEncomendasArray(a);
+                let ofA = encA.length > 0 ? String(encA[0]).split('\n')[0].trim() : '';
+
+                let encB = getEncomendasArray(b);
+                let ofB = encB.length > 0 ? String(encB[0]).split('\n')[0].trim() : '';
+
+                let cmp = ofA.localeCompare(ofB, undefined, { numeric: true, sensitivity: 'base' });
+                
+                if (cmp === 0) {
+                    let corA = String(a.cor || '').trim().toLowerCase();
+                    let corB = String(b.cor || '').trim().toLowerCase();
+                    return corA.localeCompare(corB);
+                }
+                return cmp;
+            });
+
+            let numRes = 0;
+            let totalVisivelLotes = 0;
+            let totalVisivelPartidas = 0;
+            let totalVisivelPeso = 0;
+
+            lotesOrdenados.forEach(lote => {
+                try {
+                    const status = lote.status || 'Em Andamento';
+                    if (fEstado === 'ANDAMENTO' && status === 'Concluído') return;
+                    if (fEstado === 'CONCLUIDO' && status !== 'Concluído') return;
+                    if (fTinturaria !== 'ALL' && lote.tinturaria !== fTinturaria) return;
+
+                    let partidasArray = getPartidasArray(lote);
+                    let encomendasArr = getEncomendasArray(lote);
+
+                    let guiasStr = "";
+                    partidasArray.forEach(p => {
+                        if (p.fase1 && p.fase1.guia) guiasStr += p.fase1.guia + " ";
+                        if (p.fase2 && p.fase2.guia) guiasStr += p.fase2.guia + " ";
+                        if (p.fase3 && p.fase3.guia) guiasStr += p.fase3.guia + " ";
+                    });
+                    
+                    const textP = `${lote.cliente||''} ${lote.modelo||''} ${lote.cor||''} ${lote.codigo_cor||''} ${lote.tinturaria||''} ${encomendasArr.join(' ')} ${guiasStr}`.toLowerCase();
+                    
+                    if (pesquisa && !textP.includes(pesquisa)) return;
+
+                    numRes++;
+                    let nPartidas = partidasArray.length;
+                    let cEnv = 0, cRec = 0, pTotal = 0;
+                    let loteTemRemonta = false; 
+
+                    partidasArray.forEach(p => {
+                        pTotal += parseFloat(String(p.peso || '0').replace(',', '.')) || 0;
+                        if (p.enviado) cEnv++;
+                        if (p.recebido) cRec++;
+
+                        if ( ((p.fase2 && (p.fase2.guia || p.fase2.envio || p.fase2.rececao)) || 
+                             (p.fase3 && (p.fase3.guia || p.fase3.envio || p.fase3.rececao))) && !p.recebido ) {
+                            loteTemRemonta = true;
+                        }
+                    });
+
+                    let pEnv = nPartidas > 0 ? Math.round((cEnv / nPartidas) * 100) : 0;
+                    let pRec = nPartidas > 0 ? Math.round((cRec / nPartidas) * 100) : 0;
+                    let cEnvColor = getProgressColor(pEnv);
+                    let cRecColor = getProgressColor(pRec);
+
+                    totalVisivelLotes++;
+                    totalVisivelPartidas += nPartidas;
+                    totalVisivelPeso += pTotal;
+
+                    const isExp = linhasExpandidas.has(lote.id);
+                    const isConc = status === 'Concluído';
+
+                    const encsStr = encomendasArr.map(e => {
+                        let ofClean = String(e).trim().replace(/\n/g, '');
+                        return `<span class="copyable" onclick="copiarTexto('${ofClean}', event)" title="Clique para copiar a OF">${ofClean}</span>`;
+                    }).join('<br>');
+
+                    const modelosStr = String(lote.modelo || '').split(',').map(m => m.trim()).filter(m => m).join('<br>').replace(/\n/g, '<br>');
+                    const tituloPreco = lote.preco ? `Preço Definido: ${lote.preco} €/Kg` : 'Preço não definido';
+                    const classGlowLote = loteTemRemonta ? 'glow-remonta' : ''; 
+
+                    const trM = document.createElement('tr');
+                    trM.className = `master-row ${isExp?'expanded':''} ${isConc?'is-concluido':''} ${classGlowLote}`;
+                    trM.id = 'master-' + lote.id;
+
+                    trM.addEventListener('click', function(e) {
+                        if (e.target.closest('button') || e.target.closest('input') || e.target.classList.contains('copyable')) return;
+                        if (window.getSelection && window.getSelection().toString().length > 0) return;
+                        
+                        window.toggleRow(lote.id);
+                    });
+
+                    let actionsHtml = '';
+                    if (window.isAdmin) {
+                        let btnHtml = '';
+                        if (!isConc) {
+                            const dis = pRec === 100 ? '' : 'disabled title="Requer 100% Recebido"';
+                            btnHtml = `<button class="btn-concluir" onclick="event.stopPropagation(); concluirLote('${lote.id}', event)" ${dis}><i class="fa-solid fa-check"></i></button>`;
+                        } else {
+                            btnHtml = `<button class="btn-reabrir" onclick="event.stopPropagation(); reabrirLote('${lote.id}', event)"><i class="fa-solid fa-rotate-left"></i></button>`;
+                        }
+
+                        actionsHtml = `
+                            <td class="col-acoes" onclick="event.stopPropagation();">
+                                <div style="display:flex; gap:8px; justify-content:center;">
+                                    ${btnHtml}
+                                    <button class="btn-edit" onclick="event.stopPropagation(); abrirEditarLoteNormal('${lote.id}', event)"><i class="fa-solid fa-pen"></i></button>
+                                    <button class="btn-remove" onclick="event.stopPropagation(); apagarLote('${lote.id}', event)"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </td>
+                        `;
+                    }
+
+                    trM.innerHTML = `
+                        <td><span class="expand-icon">▶</span></td>
+                        <td style="color:var(--jway-blue); font-weight:bold; line-height: 1.4;">${encsStr || '--'}</td>
+                        <td style="color:#eee; font-weight:bold;">${lote.cliente || '--'}</td>
+                        <td style="line-height: 1.4; color: #ddd;">${modelosStr || '--'}</td>
+                        <td style="line-height: 1.4;">
+                            <span style="font-weight:bold; font-size:0.9rem;">${lote.cor || '--'}</span> <br>
+                            <span class="info-hover" data-tooltip="${tituloPreco}">${lote.codigo_cor || '---'}</span>
+                        </td>
+                        <td style="font-weight:900;">${lote.tinturaria || '--'}</td>
+                        <td>
+                            ${nPartidas} Partida(s)
+                            ${loteTemRemonta ? `<br><span class="badge-fases">+Fases</span>` : ''}
+                        </td>
+                        <td style="text-align: left;">
+                            <div class="prog-container">
+                                <div class="prog-header" style="color: ${cEnvColor.bg};"><span>Enviada</span><span>${pEnv}%</span></div>
+                                <div class="prog-bg"><div class="prog-fill" style="width: ${pEnv}%; background: ${cEnvColor.bg}; box-shadow: 0 0 8px ${cEnvColor.shadow};"></div></div>
+                            </div>
+                            <div class="prog-container" style="margin-bottom: 0;">
+                                <div class="prog-header" style="color: ${cRecColor.bg};"><span>Recebida</span><span>${pRec}%</span></div>
+                                <div class="prog-bg"><div class="prog-fill" style="width: ${pRec}%; background: ${cRecColor.bg}; box-shadow: 0 0 8px ${cRecColor.shadow};"></div></div>
+                            </div>
+                        </td>
+                        <td class="peso-val">${pTotal.toFixed(1)} Kg</td>
+                        ${actionsHtml}
+                    `;
+                    corpo.appendChild(trM);
+                    
+                    const trD = document.createElement('tr');
+                    trD.className = `detail-row ${isExp?'active':''}`;
+                    trD.id = 'detail-' + lote.id;
+
+                    let subRows = '';
+                    if (nPartidas > 0) {
+                        partidasArray.forEach((p, idx) => {
+                            const f1 = p.fase1 || { guia: '', envio: '', rececao: '' };
+                            
+                            let leadRaw = calcularLeadtimeInt(p);
+                            let leadStr = leadRaw !== null ? leadRaw + ' dias' : '--';
+                            
+                            const disAttr = (isConc || !window.isAdmin) ? 'disabled style="cursor:not-allowed;"' : '';
+                            
+                            let pTemRemonta = (p.fase2 && (p.fase2.guia || p.fase2.envio || p.fase2.rececao)) || 
+                                              (p.fase3 && (p.fase3.guia || p.fase3.envio || p.fase3.rececao));
+                            let classSubGlow = (pTemRemonta && !p.recebido) ? 'glow-remonta-sub' : '';
+
+                            let guiaValor = f1.guia ? String(f1.guia).replace(/"/g, '&quot;') : '';
+                            let guiaHTML = `<input type="text" class="grid-input" value="${guiaValor}" placeholder="Guia" onchange="atualizarFaseAutomacao('${lote.id}', ${idx}, 'fase1', 'guia', this.value)" ondblclick="if(this.value) copiarTexto(this.value, event)" title="Duplo-clique para copiar a Guia" ${disAttr}>`;
+
+                            let subActionsHtml = '';
+                            if (window.isAdmin) {
+                                subActionsHtml = `
+                                <td class="col-acoes" style="text-align:center; white-space: nowrap;">
+                                    <button class="btn-sub-action" onclick="abrirModalFases('${lote.id}', ${idx})">⚙️ Fases</button>
+                                    ${!isConc ? `<button class="btn-sub-delete" onclick="removerPartida('${lote.id}', ${idx})" title="Eliminar Partida"><i class="fa-solid fa-trash"></i></button>` : ''}
+                                </td>`;
+                            }
+
+                            subRows += `
+                                <tr class="${classSubGlow}">
+                                    <td style="text-align:right; font-weight:bold; color:#aaa;">${p.nome || (idx+1 + 'ª Partida')}</td>
+                                    <td style="width: 90px;"><input type="number" class="grid-input" value="${p.peso || 0}" step="any" onchange="atualizarCampo('${lote.id}', ${idx}, null, 'peso', this.value)" ${disAttr}></td>
+                                    <td style="width: 70px;"><label style="cursor:${(isConc||!window.isAdmin)?'not-allowed':'pointer'};"><input type="checkbox" class="custom-check" ${p.enviado?'checked':''} onchange="atualizarCampo('${lote.id}', ${idx}, null, 'enviado', this.checked)" ${disAttr}> Env.</label></td>
+                                    <td style="width: 70px;"><label style="cursor:${(isConc||!window.isAdmin)?'not-allowed':'pointer'}; color:var(--color-ok);"><input type="checkbox" class="custom-check" ${p.recebido?'checked':''} onchange="atualizarCampo('${lote.id}', ${idx}, null, 'recebido', this.checked)" ${disAttr}> Rec.</label></td>
+                                    <td>${guiaHTML}</td>
+                                    <td><input type="date" class="grid-input" value="${f1.envio}" onchange="atualizarFaseAutomacao('${lote.id}', ${idx}, 'fase1', 'envio', this.value)" ${disAttr}></td>
+                                    <td><input type="date" class="grid-input" value="${f1.rececao}" onchange="atualizarFaseAutomacao('${lote.id}', ${idx}, 'fase1', 'rececao', this.value)" ${disAttr}></td>
+                                    <td style="width:80px; text-align:center;"><span class="leadtime-badge">${leadStr}</span></td>
+                                    ${subActionsHtml}
+                                </tr>
+                            `;
+                        });
+                    } else {
+                        subRows = `<tr><td colspan="${window.isAdmin ? 9 : 8}" style="text-align:center; padding:30px; color:#aaa; font-style:italic; background: rgba(0,0,0,0.2);">Ainda não existem partidas criadas para este lote.</td></tr>`;
+                    }
+
+                    trD.innerHTML = `
+                        <td colspan="${window.isAdmin ? 10 : 9}">
+                            <table class="sub-table">
+                                <thead>
+                                    <tr>
+                                        <th colspan="4" style="text-align:center; background: rgba(0, 168, 255, 0.05); color: var(--jway-blue); letter-spacing: 1.5px; border-bottom: 1px solid rgba(0, 168, 255, 0.2);">DETALHES DA PARTIDA</th>
+                                        <th colspan="3" style="text-align:center; background: rgba(112, 173, 71, 0.05); color: var(--color-ok); letter-spacing: 1.5px; border-bottom: 1px solid rgba(112, 173, 71, 0.3);">1ª FASE (TINTURARIA)</th>
+                                        <th colspan="${window.isAdmin ? 2 : 1}" style="background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);"></th>
+                                    </tr>
+                                    <tr style="background: rgba(0,0,0,0.3);">
+                                        <th>Nome</th><th>Peso (Kg)</th><th>Estado</th><th>Estado</th>
+                                        <th style="color: #999;">Guia Transport.</th><th style="color: #999;">Data Envio</th><th style="color: #999;">Data Receção</th>
+                                        <th>Leadtime</th>
+                                        ${window.isAdmin ? '<th class="col-acoes">Ações</th>' : ''}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${subRows}
+                                    ${(!isConc && window.isAdmin) ? `<tr class="add-partida-row"><td colspan="${window.isAdmin ? 9 : 8}" style="text-align:center; padding: 15px; background: rgba(0,0,0,0.2); border-top: 1px dashed rgba(255,255,255,0.05);"><button class="btn-add-partida" onclick="adicionarPartida('${lote.id}')"><i class="fa-solid fa-plus"></i> Adicionar Partida</button></td></tr>` : ''}
+                                </tbody>
+                            </table>
+                        </td>
+                    `;
+                    corpo.appendChild(trD);
+                } catch(err) {
+                    console.error("Lote ignorado por erro de estrutura de dados:", lote.id, err);
+                }
+            });
+
+            // ATUALIZAR TOTALIZADOR DO RODAPÉ
+            if (numRes === 0) {
+                corpo.innerHTML = `<tr><td colspan="${window.isAdmin ? 10 : 9}" style="text-align:center; padding: 40px; opacity:0.5; font-style: italic;">Nenhum lote corresponde à pesquisa e filtros.</td></tr>`;
+                tfoot.style.display = 'none';
+            } else {
+                tfoot.innerHTML = `<tr>
+                    <td colspan="6" style="text-align: right; font-weight: bold; color: var(--jway-blue); font-size: 0.85rem;">Σ TOTAIS VISÍVEIS NO ECRÃ:</td>
+                    <td style="font-weight: 900; color: white; font-size: 0.9rem;">${totalVisivelLotes} Lote(s)<br><span style="font-size:0.75rem; color:#aaa;">${totalVisivelPartidas} Partidas</span></td>
+                    <td></td>
+                    <td class="peso-val" style="font-size: 1.1rem; color: white;">${totalVisivelPeso.toFixed(1)} Kg</td>
+                    ${window.isAdmin ? '<td></td>' : ''}
+                </tr>`;
+                tfoot.style.display = 'table-footer-group';
+            }
+        }
+
+        // ============================================================================
+        // DASHBOARDS DE PERFORMANCE REORDENADOS
+        // ============================================================================
+        function initDropdownAnosTinturaria() {
+            const sel = document.getElementById('filtro_ano_tinturaria');
+            const curY = new Date().getFullYear();
+            let minY = curY;
+            lotes.forEach(l => {
+                let partidasArray = getPartidasArray(l);
+                partidasArray.forEach(p => {
+                    if (isDateValid(p.fase1?.envio)) minY = Math.min(minY, parseInt(p.fase1.envio.substring(0,4)));
+                    if (isDateValid(p.fase1?.rececao)) minY = Math.min(minY, parseInt(p.fase1.rececao.substring(0,4)));
+                });
+            });
+            let v = sel.value || curY.toString();
+            sel.innerHTML = '';
+            for(let a = curY + 1; a >= minY; a--) sel.innerHTML += `<option value="${a}" ${v===a.toString()?'selected':''}>${a}</option>`;
+        }
+
+        window.renderizarResumosTinturaria = function() {
+            try {
+                if (!document.getElementById('filtro_ano_tinturaria').options.length) initDropdownAnosTinturaria();
+                
+                const anoSel = document.getElementById('filtro_ano_tinturaria').value;
+                if (!anoSel) return;
+
+                const previsao = {};
+                let totalPrevisto = 0;
+                let totalPartidasPrevistas = 0;
+
+                lotes.forEach(lote => {
+                    const tint = lote.tinturaria && lote.tinturaria.trim() !== '' ? lote.tinturaria : 'Sem Tinturaria Definida';
+                    let partidasArray = getPartidasArray(lote);
+
+                    partidasArray.forEach(p => {
+                        if (p.enviado !== true) {
+                            if (!previsao[tint]) previsao[tint] = { quant: 0, count: 0 };
+                            let peso = parseFloat(String(p.peso || '0').replace(',', '.')) || 0;
+                            previsao[tint].quant += peso;
+                            previsao[tint].count += 1;
+                            totalPrevisto += peso;
+                            totalPartidasPrevistas += 1;
+                        }
+                    });
+                });
+
+                const listaPrevisaoCorpo = document.getElementById('lista-previsao-corpo');
+                if (listaPrevisaoCorpo) {
+                    let trPrevisao = '';
+                    Object.keys(previsao).sort((a,b) => previsao[b].quant - previsao[a].quant).forEach(t => {
+                        trPrevisao += `<tr>
+                            <td style="text-align: left; font-weight: bold; color: white;">${t}</td>
+                            <td style="color: var(--color-warn); font-weight: bold;">${previsao[t].quant.toFixed(1)} Kg</td>
+                            <td style="color: #aaa;">${previsao[t].count} Partida(s)</td>
+                        </tr>`;
+                    });
+
+                    if (trPrevisao === '') {
+                        trPrevisao = `<tr><td colspan="3" style="opacity:0.5; font-style:italic;">Sem partidas pendentes na Tinturaria. Tudo já foi enviado!</td></tr>`;
+                    } else {
+                        trPrevisao += `<tr style="background: rgba(255,255,255,0.05);">
+                            <td style="text-align: left; font-weight: 900; color: white;">TOTAL PENDENTE</td>
+                            <td style="color: var(--color-warn); font-weight: 900; font-size:1rem;">${totalPrevisto.toFixed(1)} Kg</td>
+                            <td style="color: white; font-weight: bold;">${totalPartidasPrevistas} Partida(s)</td>
+                        </tr>`;
+                    }
+                    listaPrevisaoCorpo.innerHTML = trPrevisao;
+                }
+
+                const stats = {};
+                const totaisAno = {};
+                const tcStats = {}; 
+                const metricsStats = {};
+
+                tinturariasDefinidas.forEach(t => {
+                    stats[t] = Array(12).fill(null).map(() => ({ env: 0, rec: 0, envP: 0, recP: 0 }));
+                    totaisAno[t] = { env: 0, rec: 0, envP: 0, recP: 0 };
+                    metricsStats[t] = { leadTimes: [], remontas: 0 };
+                    tcStats[t] = {};
+                });
+
+                lotes.forEach(lote => {
+                    const t = lote.tinturaria || 'Desconhecida';
+                    const c = lote.cliente || 'Desconhecido';
+
+                    if (!stats[t]) { 
+                        stats[t] = Array(12).fill(null).map(() => ({ env: 0, rec: 0, envP: 0, recP: 0 })); 
+                        totaisAno[t] = { env: 0, rec: 0, envP: 0, recP: 0 }; 
+                        metricsStats[t] = { leadTimes: [], remontas: 0 };
+                        tcStats[t] = {}; 
+                    }
+                    
+                    if (!tcStats[t][c]) tcStats[t][c] = 0;
+
+                    let partidasArray = getPartidasArray(lote);
+
+                    partidasArray.forEach(p => {
+                        const peso = parseFloat(String(p.peso || '0').replace(',', '.')) || 0;
+                        const de = p.fase1?.envio;
+                        const dr = p.fase1?.rececao;
+
+                        if (isDateValid(de) && de.startsWith(anoSel)) {
+                            stats[t][parseInt(de.substring(5,7)) - 1].env += peso;
+                            stats[t][parseInt(de.substring(5,7)) - 1].envP += 1;
+                            totaisAno[t].env += peso;
+                            totaisAno[t].envP += 1;
+                            tcStats[t][c] += peso;
+                        }
+                        if (isDateValid(dr) && dr.startsWith(anoSel)) {
+                            stats[t][parseInt(dr.substring(5,7)) - 1].rec += peso;
+                            stats[t][parseInt(dr.substring(5,7)) - 1].recP += 1;
+                            totaisAno[t].rec += peso;
+                            totaisAno[t].recP += 1;
+                        }
+
+                        if (isDateValid(de) && de.startsWith(anoSel)) {
+                            const lt = calcularLeadtimeInt(p);
+                            if (lt !== null) metricsStats[t].leadTimes.push(lt);
+
+                            if ( (p.fase2 && (p.fase2.envio || p.fase2.rececao)) || (p.fase3 && (p.fase3.envio || p.fase3.rececao)) ) {
+                                metricsStats[t].remontas++;
+                            }
+                        }
+                    });
+                });
+
+                const tabAno = document.getElementById('tabela-resumo-tinturaria');
+                const mAbrev = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                const tKeys = Object.keys(stats).sort((a,b) => (totaisAno[b].env - totaisAno[a].env) || a.localeCompare(b));
+                
+                if (tKeys.length === 0) {
+                    tabAno.innerHTML = `<tr><td style="text-align:center; padding:20px; opacity:0.5; font-style:italic;">Sem dados para apresentar.</td></tr>`;
+                    document.getElementById('lista-metrics-corpo').innerHTML = '';
+                    if (chartPieTinturaria) chartPieTinturaria.destroy();
+                    if (window.chartsClientes) window.chartsClientes.forEach(c => c.destroy());
+                    window.chartsClientes = [];
+                    document.getElementById('container-graficos-clientes').innerHTML = '';
+                    return;
+                }
+
+                let th1 = `<thead><tr><th rowspan="2" style="vertical-align:middle; text-align: left;">Mês</th>`;
+                tKeys.forEach(k => th1 += `<th colspan="2">${k}</th>`);
+                th1 += `<th colspan="2" style="color:white; background: rgba(255,255,255,0.05);">TOTAL MÊS</th></tr><tr>`;
+                tKeys.forEach(() => th1 += `<th style="color:var(--color-warn); font-size:0.6rem;">ENV</th><th style="color:var(--color-ok); font-size:0.6rem;">REC</th>`);
+                th1 += `<th style="color:var(--color-warn); font-size:0.6rem; background:rgba(255,255,255,0.05);">ENV</th><th style="color:var(--color-ok); font-size:0.6rem; background:rgba(255,255,255,0.05);">REC</th></tr></thead>`;
+
+                let tbAno = `<tbody>`;
+                for (let i = 0; i < 12; i++) {
+                    let htmlR = `<tr><td style="font-weight:bold; color:white; text-align:left;">${mAbrev[i]}</td>`;
+                    let eM = 0, rM = 0, eMP = 0, rMP = 0;
+                    tKeys.forEach(k => {
+                        const e = stats[k][i].env, r = stats[k][i].rec;
+                        const eP = stats[k][i].envP, rP = stats[k][i].recP;
+                        eM += e; rM += r; eMP += eP; rMP += rP;
+                        
+                        let strE = e > 0 ? `${e.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${eP})</span>` : '-';
+                        let strR = r > 0 ? `${r.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${rP})</span>` : '-';
+                        
+                        htmlR += `<td style="color:${e>0?'var(--color-warn)':'#555'}; white-space:nowrap;">${strE}</td><td style="color:${r>0?'var(--color-ok)':'#555'}; white-space:nowrap;">${strR}</td>`;
+                    });
+                    
+                    let strEM = eM > 0 ? `${eM.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${eMP})</span>` : '-';
+                    let strRM = rM > 0 ? `${rM.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${rMP})</span>` : '-';
+                    
+                    htmlR += `<td style="background:rgba(255,255,255,0.02); color:${eM>0?'var(--color-warn)':'#555'}; font-weight:bold; white-space:nowrap;">${strEM}</td><td style="background:rgba(255,255,255,0.02); color:${rM>0?'var(--color-ok)':'#555'}; font-weight:bold; white-space:nowrap;">${strRM}</td></tr>`;
+                    tbAno += htmlR;
+                }
+
+                let tfAno = `<tfoot><tr style="background: rgba(255,255,255,0.05);"><td style="font-weight:900; color:white; text-align:left; font-size:0.9rem;">TOTAL</td>`;
+                let gEnv = 0, gRec = 0, gEnvP = 0, gRecP = 0;
+                tKeys.forEach(k => {
+                    const e = totaisAno[k].env, r = totaisAno[k].rec; 
+                    const eP = totaisAno[k].envP, rP = totaisAno[k].recP;
+                    gEnv+=e; gRec+=r; gEnvP+=eP; gRecP+=rP;
+                    
+                    let strGE = e > 0 ? `${e.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${eP})</span>` : '-';
+                    let strGR = r > 0 ? `${r.toFixed(1)} Kg <span style="font-size:0.65rem; color:#888; margin-left:3px;">(${rP})</span>` : '-';
+                    
+                    tfAno += `<td style="color:var(--color-warn); font-weight:900; white-space:nowrap;">${strGE}</td><td style="color:var(--color-ok); font-weight:900; white-space:nowrap;">${strGR}</td>`;
+                });
+                
+                let strTotE = gEnv > 0 ? `${gEnv.toFixed(1)} Kg <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${gEnvP})</span>` : '-';
+                let strTotR = gRec > 0 ? `${gRec.toFixed(1)} Kg <span style="font-size:0.75rem; color:#aaa; margin-left:3px;">(${gRecP})</span>` : '-';
+                
+                tfAno += `<td style="color:var(--color-warn); font-weight:900; font-size:1rem; white-space:nowrap;">${strTotE}</td><td style="color:var(--color-ok); font-weight:900; font-size:1rem; white-space:nowrap;">${strTotR}</td></tr></tfoot>`;
+                tabAno.innerHTML = th1 + tbAno + tfAno;
+
+                const chartTooltipConfig = {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed !== null) label += context.parsed.toFixed(1) + ' Kg';
+                            return label;
+                        }
+                    }
+                };
+
+                const paleta = ['#00a8ff','#70AD47','#f39c12','#9b59b6','#ff4757','#1abc9c','#2ecc71','#34495e','#e67e22','#e74c3c'];
+                const paletaC = [...paleta].reverse(); 
+
+                if(chartPieTinturaria) chartPieTinturaria.destroy();
+                const labT = [], datT = [];
+                tKeys.forEach(k => { if(totaisAno[k].env > 0) { labT.push(k); datT.push(totaisAno[k].env); } });
+                chartPieTinturaria = new Chart(document.getElementById('graficoPieTinturaria').getContext('2d'), { 
+                    type: 'doughnut', 
+                    data: { labels: labT, datasets: [{ data: datT, backgroundColor: paleta, borderWidth: 1, borderColor: '#050d1a' }] }, 
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { position: 'right', labels: { color: '#ccc', font: {size:10} } },
+                            tooltip: chartTooltipConfig
+                        }, 
+                        cutout: '65%' 
+                    } 
+                });
+
+                if (window.chartsClientes && window.chartsClientes.length > 0) {
+                    window.chartsClientes.forEach(c => c.destroy());
+                }
+                window.chartsClientes = [];
+                
+                const containerClientes = document.getElementById('container-graficos-clientes');
+                containerClientes.innerHTML = '';
+
+                let countGraficos = 0;
+                tKeys.forEach(t => {
+                    const clientDataForT = tcStats[t];
+                    const activeClients = Object.keys(clientDataForT).filter(c => clientDataForT[c] > 0);
+                    
+                    if (activeClients.length === 0) return;
+                    countGraficos++;
+
+                    const wrapper = document.createElement('div');
+                    wrapper.style.width = '480px'; 
+                    wrapper.style.display = 'flex';
+                    wrapper.style.flexDirection = 'column';
+                    wrapper.style.alignItems = 'center';
+                    wrapper.style.background = 'rgba(0,0,0,0.2)';
+                    wrapper.style.padding = '15px';
+                    wrapper.style.borderRadius = '12px';
+                    wrapper.style.border = '1px solid rgba(255,255,255,0.03)';
+
+                    const title = document.createElement('h4');
+                    title.innerText = t;
+                    title.style.margin = '0 0 15px 0';
+                    title.style.color = 'white';
+                    title.style.fontSize = '0.9rem';
+                    title.style.borderBottom = '1px solid rgba(0, 168, 255, 0.3)';
+                    title.style.paddingBottom = '5px';
+
+                    const canvasContainer = document.createElement('div');
+                    canvasContainer.style.width = '100%';
+                    canvasContainer.style.height = '350px'; 
+
+                    const canvas = document.createElement('canvas');
+                    canvasContainer.appendChild(canvas);
+                    
+                    wrapper.appendChild(title);
+                    wrapper.appendChild(canvasContainer);
+                    containerClientes.appendChild(wrapper);
+
+                    const chart = new Chart(canvas.getContext('2d'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: activeClients,
+                            datasets: [{ data: activeClients.map(c => clientDataForT[c]), backgroundColor: paletaC, borderWidth: 1, borderColor: '#050d1a' }]
+                        },
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { 
+                                legend: { position: 'bottom', labels: { color: '#ccc', font: {size:12}, boxWidth: 12 } },
+                                tooltip: chartTooltipConfig
+                            }, 
+                            cutout: '50%' 
+                        }
+                    });
+                    window.chartsClientes.push(chart);
+                });
+
+                if (countGraficos === 0) {
+                    containerClientes.innerHTML = '<div style="opacity:0.5; font-style:italic;">Sem dados de clientes para os filtros selecionados.</div>';
+                }
+
+                let trMetricas = '';
+                tKeys.forEach(t => {
+                    const arrLT = metricsStats[t].leadTimes;
+                    const min = arrLT.length ? Math.min(...arrLT) : '-';
+                    const max = arrLT.length ? Math.max(...arrLT) : '-';
+                    const avg = arrLT.length ? (arrLT.reduce((a,b)=>a+b,0) / arrLT.length).toFixed(1) : '-';
+                    const rem = metricsStats[t].remontas;
+                    
+                    trMetricas += `<tr>
+                        <td style="text-align: left; font-weight: bold; color: white;">${t}</td>
+                        <td style="color: var(--color-ok); font-weight: bold;">${min !== '-' ? min + ' dias' : '-'}</td>
+                        <td style="color: var(--color-danger); font-weight: bold;">${max !== '-' ? max + ' dias' : '-'}</td>
+                        <td style="color: var(--jway-blue); font-weight: 900; font-size: 0.9rem;">${avg !== '-' ? avg + ' dias' : '-'}</td>
+                        <td style="color: var(--color-warn); font-weight: bold;">${rem} partidas</td>
+                    </tr>`;
+                });
+                document.getElementById('lista-metrics-corpo').innerHTML = trMetricas || `<tr><td colspan="5" style="opacity:0.5;">Sem registos métricos.</td></tr>`;
+                
+            } catch (error) {
+                console.error("Erro nos resumos:", error);
+            }
+        }
+
+        // ============================================================================
+        // SISTEMA DE GRAVAÇÃO/MODAIS E LÓGICA DE INTERFACE
+        // ============================================================================
+        window.abrirEditarLoteNormal = function(id, e) {
+            if(!window.isAdmin) return;
+            if(e) e.stopPropagation(); 
+            document.getElementById('tituloModalEdit').innerHTML = "<i class='fa-solid fa-pen'></i> Detalhes da(s) Partida(s)";
+            document.getElementById('is_new_lote').value = "false";
+            document.getElementById('edit_lote_id').value = id;
+            
+            const l = lotes.find(x => x.id === id);
+            
+            let encomendasArr = getEncomendasArray(l);
+
+            document.getElementById('edit_lote_encs').value = encomendasArr.join('\n');
+            document.getElementById('edit_lote_modelo').value = l.modelo ? String(l.modelo).replace(/, /g, '\n') : '';
+            
+            document.getElementById('edit_lote_cliente').value = l.cliente || '';
+            document.getElementById('edit_lote_cor').value = l.cor || '';
+            
+            document.getElementById('edit_lote_tinturaria').value = l.tinturaria || '';
+            document.getElementById('original_tinturaria').value = l.tinturaria || ''; 
+            document.getElementById('edit_lote_codcor').value = l.codigo_cor || '';
+            document.getElementById('edit_lote_preco').value = l.preco || '';
+            
+            document.getElementById('modalEditLote').style.display = 'flex';
+        }
+
+        window.fecharModalEditLote = function() { document.getElementById('modalEditLote').style.display = 'none'; }
+
+        window.guardarLoteEditado = function() {
+            if(!window.isAdmin) return;
+            const isNew = document.getElementById('is_new_lote').value === "true";
+            const id = isNew ? ("LOTE-" + new Date().getTime()) : document.getElementById('edit_lote_id').value;
+            
+            const encomendasTxt = document.getElementById('edit_lote_encs').value;
+            const tintSelecionada = document.getElementById('edit_lote_tinturaria').value;
+            const clien = document.getElementById('edit_lote_cliente').value;
+            
+            if(!clien || !tintSelecionada) { showToast("Os campos Cliente e Tinturaria sao obrigatorios!", 'error'); return; }
+
+            const payload = {
+                encomendas: encomendasTxt.split('\n').map(e=>e.trim()).filter(e=>e!==''),
+                cliente: clien,
+                modelo: document.getElementById('edit_lote_modelo').value.replace(/\n/g, ', '), 
+                tinturaria: tintSelecionada,
+                cor: document.getElementById('edit_lote_cor').value,
+                codigo_cor: document.getElementById('edit_lote_codcor').value,
+                preco: document.getElementById('edit_lote_preco').value
+            };
+
+            if(isNew) {
+                payload.status = 'Em Andamento';
+                payload.partidas = [{ nome: "1ª Partida", peso: 0, enviado: false, recebido: false, fase1: { guia: "", envio: "", rececao: "" }, fase2: { guia: "", envio: "", rececao: "", obs: "" }, fase3: { guia: "", envio: "", rececao: "", obs: "" } }];
+                
+                database.ref('dados/mapa_tinturaria/partidas/' + id).set(payload).then(() => { 
+                    fecharModalEditLote(); showToast("Lote gerado com a sua seleção de Partidas!"); 
+                });
+            } else {
+                database.ref('dados/mapa_tinturaria/partidas/' + id).update(payload).then(() => { 
+                    fecharModalEditLote(); showToast("Detalhes guardados com sucesso!"); 
+                });
+            }
+        }
+
+        window.apagarLote = function(id, e) {
+            if(!window.isAdmin) return;
+            if(e) e.stopPropagation();
+            window.uiConfirm("Eliminar lote e as suas partidas? Ação irreversível!", "Confirmar eliminação").then((ok) => {
+                if (!ok) return;
+                database.ref('dados/mapa_tinturaria/partidas/' + id).remove().then(() => showToast("Removido."));
+            });
+        }
+        window.concluirLote = function(id, e) {
+            if(!window.isAdmin) return;
+            if(e) e.stopPropagation();
+            window.uiConfirm("Marcar produção como CONCLUÍDA?", "Confirmar conclusão").then((ok) => {
+                if (!ok) return;
+                database.ref('dados/mapa_tinturaria/partidas/' + id).update({ status: 'Concluído' }).then(() => showToast("Concluída!"));
+            });
+        }
+        window.reabrirLote = function(id, e) {
+            if(!window.isAdmin) return;
+            if(e) e.stopPropagation();
+            window.uiConfirm("Reabrir produção?", "Confirmar reabertura").then((ok) => {
+                if (!ok) return;
+                database.ref('dados/mapa_tinturaria/partidas/' + id).update({ status: 'Em Andamento' }).then(() => showToast("Reaberta."));
+            });
+        }
+
+        window.atualizarCampo = function(lId, pIdx, cPai, cFilho, v) { if(!window.isAdmin) return; const path = cPai ? `dados/mapa_tinturaria/partidas/${lId}/partidas/${pIdx}/${cPai}/${cFilho}` : `dados/mapa_tinturaria/partidas/${lId}/partidas/${pIdx}/${cFilho}`; database.ref(path).set(v); }
+        window.atualizarFaseAutomacao = function(lId, pIdx, fase, campo, v) {
+            if(!window.isAdmin) return;
+            window.atualizarCampo(lId, pIdx, fase, campo, v);
+            if (fase === 'fase1' && v && v.trim() !== '') {
+                if (campo === 'guia' || campo === 'envio') window.atualizarCampo(lId, pIdx, null, 'enviado', true);
+                if (campo === 'rececao') window.atualizarCampo(lId, pIdx, null, 'recebido', true);
+            }
+        }
+
+        window.abrirModalFases = function(id, idx) {
+            if(!window.isAdmin) return;
+            curModalLoteId = id; curModalPartidaIdx = idx;
+            const l = lotes.find(lt => lt.id === id);
+            const pArray = getPartidasArray(l);
+            const p = pArray[idx];
+
+            document.getElementById('modalTitle').innerText = "Gestão de Fases - " + (p.nome || "Partida");
+            document.getElementById('m_f2_guia').value = p.fase2?.guia || ""; document.getElementById('m_f2_envio').value = p.fase2?.envio || ""; document.getElementById('m_f2_rececao').value = p.fase2?.rececao || ""; document.getElementById('m_f2_obs').value = p.fase2?.obs || "";
+            document.getElementById('m_f3_guia').value = p.fase3?.guia || ""; document.getElementById('m_f3_envio').value = p.fase3?.envio || ""; document.getElementById('m_f3_rececao').value = p.fase3?.rececao || ""; document.getElementById('m_f3_obs').value = p.fase3?.obs || "";
+            document.getElementById('modalFases').style.display = 'flex';
+        }
+        window.fecharModal = function() { document.getElementById('modalFases').style.display = 'none'; }
+        
+        window.guardarModalFases = function() {
+            if(!window.isAdmin) return;
+            const l = lotes.find(lt => lt.id === curModalLoteId);
+            let pArray = getPartidasArray(l);
+            
+            const p = pArray[curModalPartidaIdx];
+            const f2 = { guia: document.getElementById('m_f2_guia').value, envio: document.getElementById('m_f2_envio').value, rececao: document.getElementById('m_f2_rececao').value, obs: document.getElementById('m_f2_obs').value };
+            const f3 = { guia: document.getElementById('m_f3_guia').value, envio: document.getElementById('m_f3_envio').value, rececao: document.getElementById('m_f3_rececao').value, obs: document.getElementById('m_f3_obs').value };
+            
+            let isE = p.enviado || false, isR = p.recebido || false, mudou = false;
+            if (f2.envio !== "" || f2.guia !== "") { isE = true; isR = false; mudou = true; }
+            if (f2.rececao !== "") { isE = true; isR = true; mudou = true; }
+            if (f3.envio !== "" || f3.guia !== "") { isE = true; isR = false; mudou = true; }
+            if (f3.rececao !== "") { isE = true; isR = true; mudou = true; }
+
+            let updates = { [`dados/mapa_tinturaria/partidas/${curModalLoteId}/partidas/${curModalPartidaIdx}/fase2`]: f2, [`dados/mapa_tinturaria/partidas/${curModalLoteId}/partidas/${curModalPartidaIdx}/fase3`]: f3 };
+            if(mudou) { updates[`dados/mapa_tinturaria/partidas/${curModalLoteId}/partidas/${curModalPartidaIdx}/enviado`] = isE; updates[`dados/mapa_tinturaria/partidas/${curModalLoteId}/partidas/${curModalPartidaIdx}/recebido`] = isR; }
+            database.ref().update(updates).then(() => { fecharModal(); showToast("Fases atualizadas!"); });
+        }
+
+        window.adicionarPartida = function(id) {
+            if(!window.isAdmin) return;
+            const l = lotes.find(x => x.id === id);
+            let arr = getPartidasArray(l);
+            
+            arr.push({ nome: (arr.length + 1) + "ª Partida", peso: 0, enviado: false, recebido: false, fase1: { guia: "", envio: "", rececao: "" }, fase2: { guia: "", envio: "", rececao: "", obs: "" }, fase3: { guia: "", envio: "", rececao: "", obs: "" } });
+            database.ref('dados/mapa_tinturaria/partidas/' + id + '/partidas').set(arr).then(() => showToast("Nova partida adicionada!"));
+        }
+        window.removerPartida = function(id, idx) {
+            if(!window.isAdmin) return;
+            window.uiConfirm("Eliminar esta partida?", "Confirmar eliminação").then((ok) => {
+                if (!ok) return;
+                const l = lotes.find(x => x.id === id);
+                let arr = getPartidasArray(l);
+
+                arr.splice(idx, 1);
+                arr.forEach((p, i) => { if(p.nome.includes("ª Partida")) p.nome = (i + 1) + "ª Partida"; });
+                database.ref('dados/mapa_tinturaria/partidas/' + id + '/partidas').set(arr).then(() => showToast("Partida removida!"));
+            });
+        }
+
+    </script>
+</body>
+</html>
+
+
+
+
+

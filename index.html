@@ -1,0 +1,177 @@
+﻿<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <meta name="theme-color" content="#050d1a">
+    <title>Jway - Portal de Acesso</title>
+    
+    <link rel="icon" href="src/assets/images/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="src/css/estilos-globais.css?v=41">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        body::before,
+        body::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            filter: blur(40px);
+        }
+        body::before {
+            width: 280px;
+            height: 280px;
+            background: rgba(0, 168, 255, 0.12);
+            top: -120px;
+            right: -60px;
+        }
+        body::after {
+            width: 220px;
+            height: 220px;
+            background: rgba(112, 173, 71, 0.1);
+            bottom: -80px;
+            left: -60px;
+        }
+        .login-shell { width: 100%; max-width: 400px; padding: 20px; box-sizing: border-box; z-index: 1; }
+        .login-box { background: rgba(10, 25, 47, 0.9); padding: 34px 32px; border-radius: 16px; border: 1px solid var(--jway-blue); width: 100%; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
+        .login-box h2 { margin: 0 0 8px 0; color: var(--jway-blue); font-size: 0.95rem; letter-spacing: 2px; font-weight: 800; opacity: 0.95; text-transform: uppercase; }
+        .login-subtitle { margin: 0 0 22px 0; color: rgba(255,255,255,0.6); font-size: 0.76rem; letter-spacing: 0.4px; }
+        .mode-switch {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 0 0 16px 0;
+            padding: 6px;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .mode-option {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: transparent;
+            color: rgba(255,255,255,0.65);
+            padding: 10px 12px;
+            font-size: 0.74rem;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .mode-option:hover {
+            color: #ffffff;
+            background: rgba(255,255,255,0.05);
+        }
+        .mode-option.active {
+            color: #ffffff;
+            background: rgba(0, 168, 255, 0.2);
+            border-color: rgba(0, 168, 255, 0.5);
+            box-shadow: 0 0 0 1px rgba(0, 168, 255, 0.24);
+        }
+        .input-field { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white; box-sizing: border-box; outline: none; font-size: 0.95rem; font-weight: bold; font-family: inherit; transition: 0.2s; }
+        .input-field:focus { border-color: var(--jway-blue); background: rgba(0,0,0,0.8); }
+        .pass-wrapper { position: relative; width: 100%; margin-bottom: 15px; }
+        .pass-wrapper input { margin-bottom: 0 !important; padding-right: 45px !important; }
+        .toggle-pass { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.5; width: 20px; height: 20px; user-select: none; -webkit-user-drag: none; }
+        .recovery-link { display: none; margin-top: 10px; font-size: 0.7rem; color: rgba(255,255,255,0.5); text-decoration: underline; cursor: pointer; }
+        .recovery-link:hover { color: var(--jway-blue); }
+        #login-msg { font-size: 0.8rem; margin-top: 15px; font-weight: bold; display: none; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); word-break: break-word; }
+        #login-msg.positive { color: #d7f3d4; background: rgba(112, 173, 71, 0.16); border-color: rgba(112, 173, 71, 0.3); }
+        #login-msg.error { color: #ffb3b9; background: rgba(255, 71, 87, 0.16); border-color: rgba(255, 71, 87, 0.3); }
+        .btn-login { width: 100%; padding: 14px; font-size: 1rem; position: relative; }
+        .btn-login[disabled] { opacity: 0.75; cursor: not-allowed; }
+        .btn-login.is-loading { color: rgba(255,255,255,0.85); }
+        .btn-login.is-loading::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.25);
+            border-top-color: #ffffff;
+            display: inline-block;
+            margin-left: 8px;
+            animation: loginSpin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes loginSpin {
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 480px) {
+            .login-shell { padding: 14px; }
+            .login-box { padding: 28px 22px; }
+        }
+    </style>
+</head>
+<body>
+
+    <main class="login-shell">
+    <div class="login-box">
+        <img src="src/assets/images/jwayseamlessflow.png" alt="Jway Logo" style="width: 120px; height: auto; margin-bottom: 15px;">
+        <h2 id="titulo-login">ACESSO FÁBRICA</h2>
+
+        <p class="login-subtitle">Entre com as suas credenciais para continuar</p>
+
+        <div class="mode-switch" role="tablist" aria-label="Selecionar modo de acesso">
+            <button id="btn-modo-operador" type="button" class="mode-option active" aria-selected="true"><i class="fa-solid fa-industry"></i> Acesso Fábrica</button>
+            <button id="btn-modo-admin" type="button" class="mode-option" aria-selected="false"><i class="fa-solid fa-shield-halved"></i> Administrador</button>
+        </div>
+
+        <form id="login-form" novalidate>
+        <div id="modo-operador">
+            <select id="user-dropdown" class="input-field" style="cursor: pointer;" aria-label="Selecionar utilizador">
+                <option value="">A carregar utilizadores...</option>
+            </select>
+        </div>
+
+        <div id="modo-admin" style="display: none;">
+            <input type="email" id="email" class="input-field" placeholder="O seu email Administrador" autocomplete="username" aria-label="Email de administrador">
+        </div>
+
+        <div class="pass-wrapper">
+            <input type="password" id="password" class="input-field" placeholder="Palavra-passe" autocomplete="current-password" aria-label="Palavra-passe">
+            <img src="src/assets/images/eye.png" class="toggle-pass" id="olho-magico" title="Manter premido para ver" alt="Ver Password" role="button" tabindex="0" aria-label="Mostrar palavra-passe enquanto pressionado">
+        </div>
+
+        <button id="login-button" type="submit" class="btn-primary btn-login">
+            <span id="login-btn-label">ENTRAR NO SISTEMA</span>
+        </button>
+        </form>
+
+        <a id="link-recuperar" class="recovery-link" aria-label="Recuperar palavra-passe">Esqueci-me da palavra-passe</a>
+        <p id="login-msg" aria-live="polite"></p>
+
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 10px;">
+            <img src="src/assets/images/Alecgroup.png" alt="Alecgroup Logo" style="height: 25px; opacity: 0.5;">
+            <div style="font-size: 0.65rem; color: rgba(255,255,255,0.4); letter-spacing: 0.5px;">&copy; 2026 | Desenvolvido por João Carvalho</div>
+        </div>
+    </div>
+    </main>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+
+    <script src="src/js/firebase-config.js"></script>
+    <script src="src/js/session-utils.js"></script>
+    <script src="src/js/autenticacao.js"></script>
+    <script src="src/js/index-page.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "dados": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "utilizadores": {
+        ".read": "root.child('utilizadores').child(auth.uid).child('role').val() === 'admin'",
+        ".write": "root.child('utilizadores').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "alertas": {
+        ".read": "auth != null",
+        ".write": "root.child('utilizadores').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "maquinas": {
+        ".read": "auth != null",
+        ".write": "root.child('utilizadores').child(auth.uid).child('role').val() === 'admin'"
+      },
+      "encomendas": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      },
+      "teares": {
+        ".read": "auth != null",
+        ".write": "root.child('utilizadores').child(auth.uid).child('role').val() === 'admin'"
+      }
+    }
+  }
+}

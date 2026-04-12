@@ -1,0 +1,1725 @@
+﻿<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <meta name="theme-color" content="#050d1a">
+    <title>Jway - Painel de Estado das Máquinas</title>
+    <link rel="icon" href="src/assets/images/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="src/css/estilos-globais.css?v=41">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="src/js/firebase-config.js"></script>
+    <script src="src/js/session-utils.js"></script>
+
+    <style>
+        /* ---------------------------------------------------
+           CORES TOTAIS DOS CARTÕES (SOBREPÕE O ESTILO GLOBAL)
+           --------------------------------------------------- */
+        .tear-card { border: 1px solid rgba(255,255,255,0.15) !important; }
+        .tear-card.bg-producao { background: linear-gradient(to bottom, var(--color-producao) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-producao) !important; }
+        .tear-card.bg-preparacao { background: linear-gradient(to bottom, var(--color-preparacao) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-preparacao) !important; }
+        .tear-card.bg-preparacao_producao { background: linear-gradient(to bottom, var(--color-preparacao) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-preparacao) !important; }
+        .tear-card.bg-amostras { background: linear-gradient(to bottom, var(--color-amostras) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-amostras) !important; }
+        .tear-card.bg-desenvolvimento_amostras { background: linear-gradient(to bottom, var(--color-amostras) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-amostras) !important; }
+        .tear-card.bg-manutencao { background: linear-gradient(to bottom, var(--color-manutencao) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-manutencao) !important; }
+        .tear-card.bg-parado { background: linear-gradient(to bottom, var(--color-parado) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-parado) !important; }
+        .tear-card.bg-avariada { background: linear-gradient(to bottom, var(--color-avariada) 0 calc(100% - 86px), transparent calc(100% - 86px) 100%) !important; border-color: var(--color-avariada) !important; }
+
+        .search-input { padding-right: 48px !important; }
+        #searchInput::-webkit-search-cancel-button,
+        #searchInput::-webkit-search-decoration,
+        #searchInput::-webkit-search-results-button,
+        #searchInput::-webkit-search-results-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+            display: none;
+        }
+        #btn-clear-filters {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 71, 87, 0.35);
+            background: rgba(255, 71, 87, 0.14);
+            color: #ff6a79;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 2;
+        }
+        #btn-clear-filters i {
+            display: block;
+            line-height: 1;
+            font-size: 14px;
+        }
+        #btn-clear-filters:hover {
+            background: rgba(255, 71, 87, 0.32);
+            color: #fff;
+        }
+
+        /* Botões do Rodapé dos Cartões Originais */
+        .btn-plan { background: rgba(0, 168, 255, 0.05); color: var(--jway-blue); border: 1px solid rgba(0, 168, 255, 0.3); padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-plan:hover { background: rgba(0, 168, 255, 0.15); color: white; border-color: var(--jway-blue); }
+        @keyframes tarefasGlowPulse {
+            0%, 100% { box-shadow: 0 0 0 rgba(0, 168, 255, 0); }
+            50% { box-shadow: 0 0 14px rgba(0, 168, 255, 0.65), 0 0 28px rgba(0, 168, 255, 0.25); }
+        }
+        .btn-glow-tarefas {
+            border-color: rgba(0, 168, 255, 0.7) !important;
+            background: rgba(0, 168, 255, 0.16) !important;
+            animation: tarefasGlowPulse 1.8s ease-in-out infinite;
+        }
+        .btn-glow-tarefas i { color: #9fe3ff; }
+        .btn-alert { background: rgba(255, 77, 77, 0.05); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.3); padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-alert:hover { background: rgba(255, 77, 77, 0.15); color: white; border-color: #ff4d4d; }
+        .btn-alert-locked { background: rgba(255, 255, 255, 0.05) !important; color: rgba(255,255,255,0.3) !important; border: 1px dashed rgba(255, 255, 255, 0.2) !important; cursor: not-allowed; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+        /* OVERLAY DE TAREFAS (CORTINA ESCURA) */
+        .overlay-plan { position: absolute; inset: 0; background: rgba(5, 13, 26, 0.95); backdrop-filter: blur(8px); z-index: 10; display: flex; flex-direction: column; padding: 15px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: white;}
+        .overlay-plan.active { transform: translateY(0); }
+        .overlay-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--jway-blue); padding-bottom: 5px; }
+        .plan-slot { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #444; font-size: 0.85rem; text-align: left;}
+        
+        .bl-producao { border-left-color: var(--color-producao); }
+        .bl-preparacao { border-left-color: var(--color-preparacao); }
+        .bl-amostras { border-left-color: var(--color-amostras); }
+
+        /* ALERTA NO CARTAO: visual mais limpo e integrado */
+        @keyframes cardAlertPulseSoft {
+            0%, 100% { box-shadow: 0 0 0 rgba(255, 71, 87, 0); }
+            50% { box-shadow: 0 0 0 1px rgba(255, 71, 87, 0.45), 0 0 14px rgba(255, 71, 87, 0.22); }
+        }
+        .tear-card.alert-active {
+            border-width: 2px !important;
+            border-color: #ff5f74 !important;
+            animation: cardAlertPulseSoft 2.1s ease-in-out infinite;
+            box-shadow: 0 0 0 1px rgba(255, 95, 116, 0.28);
+        }
+        .tear-card .alert-bar {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 10px;
+            border-radius: 8px 8px 0 0;
+            background: linear-gradient(180deg, #ff667c 0%, #ff5970 100%);
+            color: #fff;
+            border: none;
+            font-size: 0.78rem;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: filter 0.2s ease, transform 0.2s ease;
+        }
+        .tear-card .alert-bar:hover {
+            filter: brightness(1.05);
+        }
+
+        /* Modal de histórico: impedir texto de sair dos cartões */
+        #alert-list-container-view .alert-card { min-width: 0; }
+        #alert-list-container-view .alert-card-body { min-width: 0; width: 100%; }
+        #alert-list-container-view .alert-card-title,
+        #alert-list-container-view .alert-card-text,
+        #alert-list-container-view .alert-card-meta {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        /* DESTAQUES E ANIMAÇÕES */
+        @keyframes highLightTear { 0% { transform: scale(1); box-shadow: 0 0 0 transparent; } 50% { transform: scale(1.03); border-color: var(--jway-blue); box-shadow: 0 0 40px var(--jway-blue); } 100% { transform: scale(1); box-shadow: 0 0 0 transparent; } }
+        .highlight-find { animation: highLightTear 2s ease-in-out; }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-body);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--jway-blue);
+            font-weight: bold;
+            opacity: 1;
+            transition: opacity 0.22s ease;
+            pointer-events: auto;
+        }
+        #loader.hidden { opacity: 0; pointer-events: none; }
+
+        /* MODO TV */
+        .btn-tv-active {
+            background: rgba(112, 173, 71, 0.16) !important;
+            color: #9be26f !important;
+            border-color: rgba(112, 173, 71, 0.45) !important;
+        }
+        #btn-tv-floating {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 12px;
+            z-index: 4200;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        }
+        html.tv-mode,
+        body.tv-mode {
+            padding: 6px;
+            scrollbar-width: none;
+        }
+        html.tv-mode::-webkit-scrollbar,
+        body.tv-mode::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+        }
+        body.tv-mode .header {
+            display: none !important;
+        }
+        body.tv-mode .header-logo {
+            width: 58px;
+        }
+        body.tv-mode .header-title {
+            font-size: 1.35rem;
+        }
+        body.tv-mode .user-nav-panel,
+        body.tv-mode .search-bar-container,
+        body.tv-mode .btn-general-alert,
+        body.tv-mode .btn-notify,
+        body.tv-mode .btn-history,
+        body.tv-mode #btn-navegacao,
+        body.tv-mode .site-footer {
+            display: none !important;
+        }
+        body.tv-mode .action-bar {
+            display: none !important;
+        }
+        body.tv-mode #btn-tv-floating {
+            display: inline-flex !important;
+            opacity: 0.34;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: scale(0.98);
+        }
+        body.tv-mode.tv-scrolling #btn-tv-floating {
+            opacity: 1;
+            transform: scale(1);
+        }
+        body.tv-mode #mainGrid {
+            max-width: 99%;
+            margin: 4px auto 0 auto;
+        }
+        body.tv-mode .dashboard-widget {
+            background: #0a1b35 !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+        }
+        body.tv-mode .tear-card.bg-producao { background: var(--color-producao) !important; }
+        body.tv-mode .tear-card.bg-preparacao,
+        body.tv-mode .tear-card.bg-preparacao_producao { background: var(--color-preparacao) !important; }
+        body.tv-mode .tear-card.bg-amostras,
+        body.tv-mode .tear-card.bg-desenvolvimento_amostras { background: var(--color-amostras) !important; }
+        body.tv-mode .tear-card.bg-manutencao { background: var(--color-manutencao) !important; }
+        body.tv-mode .tear-card.bg-parado { background: var(--color-parado) !important; }
+        body.tv-mode .tear-card.bg-avariada { background: var(--color-avariada) !important; }
+        body.tv-mode .tear-card .footer-buttons,
+        body.tv-mode .tear-card .card-footer .btn-plan,
+        body.tv-mode .tear-card .card-footer .btn-alert,
+        body.tv-mode .tear-card .card-footer .btn-alert-locked {
+            display: none !important;
+        }
+        body.tv-mode #btnBackToTop {
+            display: none !important;
+        }
+        body.tv-mode .tear-card .card-footer {
+            padding: 6px 10px !important;
+            gap: 4px !important;
+            min-height: 28px;
+            background: rgba(5, 13, 26, 0.38) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+        }
+        body.tv-mode .tear-card .last-update {
+            font-size: 0.58rem !important;
+            opacity: 1 !important;
+            color: #f2f7ff !important;
+            -webkit-text-fill-color: #f2f7ff !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+            font-weight: 800 !important;
+            letter-spacing: 0.3px;
+        }
+        body.tv-mode .dashboard-widgets-container {
+            max-width: 99% !important;
+            margin-top: 10px !important;
+            margin-bottom: 10px !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <img src="src/assets/images/jwayseamlessflow.png" alt="Logo" style="height: 150px; margin-bottom: 20px; opacity: 0.75;">
+        A Carregar Máquinas...
+    </div>
+
+    <div id="main-content" style="display: none;">
+        
+        <div class="header">
+            <div class="header-brand">
+                <img src="src/assets/images/jwayseamlessflow.png" alt="Jway Logo" class="header-logo">
+                <h1 class="header-title">Painel de Estado das Máquinas</h1>
+            </div>
+            
+            <div class="user-nav-panel">
+                <div id="live-clock" class="live-clock">A carregar hora...</div>
+                
+                <div class="user-badge-box">
+                    <div id="topbar-avatar-dashboard" class="topbar-user-avatar"><i class="fa-solid fa-user" style="font-size:0.8rem; opacity:0.5;"></i></div>
+                    <div class="user-info-text">
+                        <span id="logged-user-name" style="font-size: 0.85rem; font-weight: 800; color: white;"></span>
+                        <span id="logged-user-category" style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase;"></span>
+                    </div>
+                    <button class="btn-primary btn-logout-standard" onclick="fazerLogout()">Sair <i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <div style="display: flex; flex-grow: 1; align-items: center; max-width: 600px;">
+                <div class="search-bar-container" style="width: 100%;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="search" id="searchInput" class="search-input" placeholder="Pesquisar por tear, cliente, artigo ou técnico..." oninput="window.filtrarTeares()">
+                    <button id="btn-clear-filters" type="button" title="Limpar pesquisa e filtro" aria-label="Limpar pesquisa e filtro" onclick="document.getElementById('searchInput').value=''; window.toggleFiltroStatus(null); window.filtrarTeares();"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            <div class="menu-dropdown-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button id="btn-tv-mode" class="btn-modern btn-topbar" onclick="window.toggleTvMode()" title="Ativar modo TV">
+                    <i class="fa-solid fa-tv"></i> Modo TV
+                </button>
+                <button id="btn-general-alert" class="btn-modern btn-general-alert" onclick="abrirModalAlertaGeral()">
+                    <i class="fa-solid fa-bullhorn"></i> Notificação Geral
+                </button>
+                <button id="btn-notify-main" class="btn-modern btn-notify" onclick="abrirListaAlertas('pendente', 'all')">
+                    <i class="fa-solid fa-bell"></i> Notificações <span id="badge-alertas" class="badge">0</span>
+                </button>
+                <button id="btn-history-main" class="btn-modern btn-history" onclick="abrirListaAlertas('historico', 'all')">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Histórico
+                </button>
+
+                <div style="position: relative;">
+                    <button id="btn-navegacao" class="btn-modern btn-topbar btn-topbar-icon" onclick="toggleMenuNav(event)">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div id="menu-nav-dropdown" class="menu-dropdown"></div>
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-tv-floating" class="btn-modern btn-topbar" onclick="window.toggleTvMode(false)" title="Sair do modo TV">
+            <i class="fa-solid fa-up-right-and-down-left-from-center"></i> Sair TV
+        </button>
+
+        <div class="dashboard-widgets-container" style="max-width: 98%; margin: 30px auto 20px auto; display: flex; gap: 20px; flex-wrap: wrap;">
+            <div class="dashboard-widget" style="flex: 1; min-width: 350px; background: rgba(10, 25, 47, 0.4); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column;">
+                <h3 style="margin-top:0; color:white; font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 15px;"><i class="fa-solid fa-chart-pie"></i> ESTADO DA FÁBRICA <span style="font-size:0.6rem; opacity:0.5; font-weight:normal; text-transform:none;">(Clica para filtrar)</span></h3>
+                <div id="dash-status" class="stats-dashboard" style="margin-bottom: 0;">A carregar dados...</div>
+            </div>
+        </div>
+
+        <div id="mainGrid" class="dashboard-grid"></div>
+
+        <div class="dashboard-widgets-container" style="max-width: 98%; margin: 20px auto 30px auto; display: flex; gap: 20px; flex-wrap: wrap;">
+            <div class="dashboard-widget" style="flex: 1; min-width: 350px; background: rgba(10, 25, 47, 0.4); padding: 25px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); align-self: flex-start;">
+                <h3 style="margin-top:0; color:white; font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 15px;"><i class="fa-solid fa-swatchbook"></i> AMOSTRAS / TÉCNICO</h3>
+                <div id="dash-designers" class="stats-dashboard" style="justify-content: flex-start;">A carregar dados...</div>
+            </div>
+        </div>
+
+        <div class="site-footer">
+            <div>&copy; 2026 Jway Nexus | Desenvolvido por João Carvalho | Painel de Estado das Máquinas</div>
+            <img src="src/assets/images/Alecgroup.png" alt="Alecgroup Logo" class="footer-logo">
+        </div>
+    </div>
+
+    <div id="modal-alerta" class="modal-overlay">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2 id="alerta-tear-lbl" style="margin:0; color: var(--jway-blue);">TEAR</h2>
+                <button class="modal-close" onclick="fecharModalAlerta()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <input type="hidden" id="alerta-tear-id">
+            
+            <div class="form-group">
+                <label>MOTIVO:</label>
+                <select id="alerta-motivo" class="card-input-base theme-light-text" style="height: 45px; font-size: 0.9rem;" onchange="verificarObservacoes()"></select>
+            </div>
+            
+            <div class="form-group">
+                <input type="text" id="alerta-obs" class="card-input-base theme-light-text" style="height: 45px; font-size: 0.9rem;" placeholder="Detalhes (Obrigatório)*">
+            </div>
+            
+            <div class="form-group" style="text-align: center; margin-top: 15px; margin-bottom: 20px;">
+                <label style="text-align: center;">QUEM ESTÁ A REGISTAR:</label>
+                <div id="alerta-resp-display" style="font-size: 1.1rem; font-weight: 900; color: var(--jway-blue); text-transform: uppercase;">--</div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; margin-bottom: 10px;" onclick="enviarAlerta()">ENVIAR REGISTO</button>
+            <button class="btn-secondary-alt" style="width: 100%;" onclick="fecharModalAlerta()">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-alerta-geral" class="modal-overlay">
+        <div class="modal-content modal-small border-danger">
+            <div class="modal-header">
+                <h2 style="margin:0; color: var(--color-parado);"><i class="fa-solid fa-bullhorn"></i> NOTIFICAÇÃO GERAL</h2>
+                <button class="modal-close" onclick="fecharModalAlertaGeral()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="modal-description" style="text-align: center; margin-bottom: 20px;">Utilize este espaço para reportar incidentes que afetem o chão de fábrica (falhas de energia, falhas de rede, etc).</p>
+            
+            <div class="form-group">
+                <label>DESCRIÇÃO DA OCORRÊNCIA (Obrigatório)*:</label>
+                <textarea id="alerta-geral-obs" class="card-input-base theme-light-text" rows="4" style="height: auto; font-size: 0.9rem; padding: 10px; resize: vertical;" placeholder="Descreva o incidente detalhadamente..."></textarea>
+            </div>
+            
+            <div class="form-group" style="text-align: center; margin-bottom: 20px;">
+                <label style="text-align: center;">QUEM ESTÁ A REGISTAR:</label>
+                <div id="alerta-geral-resp-display" style="font-size: 1.1rem; font-weight: 900; color: var(--jway-blue); text-transform: uppercase;">--</div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; padding: 14px; background: var(--color-parado); font-size: 1rem; margin-bottom: 10px;" onclick="enviarAlertaGeral()">ENVIAR NOTIFICAÇÃO GERAL</button>
+            <button class="btn-secondary-alt" style="width: 100%;" onclick="fecharModalAlertaGeral()">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-lista-view" class="modal-overlay">
+        <div class="modal-content" style="max-width: 900px; display: flex; flex-direction: column; max-height: 80vh; padding: 25px;">
+            <div class="modal-header">
+                <h2 id="modal-lista-title" style="margin:0; font-size: 1.3rem; color: white; display: flex; align-items: center; gap: 10px;"><i class="fa-solid fa-bell" style="color: #ff4757;"></i> Notificações Pendentes</h2>
+                <button class="modal-close" onclick="fecharListaAlertas()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="historico-filters-view" class="modal-filters" style="display:none;"></div>
+            
+            <div id="alert-list-container-view" class="modal-list"></div>
+
+            <button id="btn-load-more-alerts-view" class="btn-modern btn-history btn-load-more" onclick="window.carregarMaisAlertasView()">Carregar mais 50 notificações antigas...</button>
+        </div>
+    </div>
+
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <button id="btnBackToTop" title="Voltar ao topo" onclick="scrollToTop()">
+        <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+    <!-- MODAL DE CONFIRMAÇÃO PERSONALIZADO -->
+    <div id="modal-confirm" class="modal-overlay" style="z-index: 9999;">
+        <div class="modal-content modal-small" style="max-width: 380px; padding: 30px; border-color: rgba(0,168,255,0.4);">
+            <div style="font-size: 2rem; margin-bottom: 14px; text-align: center;" id="confirm-icon"><i class="fa-solid fa-circle-question" style="color: var(--jway-blue);"></i></div>
+            <p id="confirm-message" style="text-align: center; color: rgba(255,255,255,0.85); font-size: 0.95rem; font-weight: 600; margin: 0 0 24px 0; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 10px;">
+                <button id="confirm-cancel" class="btn-secondary-alt" style="flex: 1; padding: 12px; font-size: 0.85rem; cursor: pointer;">Cancelar</button>
+                <button id="confirm-ok" class="btn-primary" style="flex: 1; padding: 12px; font-size: 0.85rem;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE MUDANÇA DE PASSWORD OBRIGATÓRIA -->
+    <div id="modal-change-pass" class="modal-overlay" style="z-index: 10000; display: none;">
+        <div class="modal-content modal-small" style="max-width: 420px; padding: 35px; border-color: rgba(255,168,0,0.5);">
+            <div style="font-size: 2.5rem; margin-bottom: 14px; text-align: center;">
+                <i class="fa-solid fa-key" style="color: #ffa500;"></i>
+            </div>
+            <h3 style="text-align: center; margin: 0 0 8px; color: white;">Definir Nova Password</h3>
+            <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0 0 24px; line-height: 1.5;">É o seu primeiro acesso. Por segurança, defina uma password pessoal antes de continuar.</p>
+                <div style="position: relative; margin-bottom: 12px;">
+                    <input type="password" id="new-pass-input" placeholder="Nova password" autocomplete="new-password" style="width: 100%; padding: 12px 44px 12px 16px; box-sizing: border-box; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: white; font-size: 0.9rem; outline: none;">
+                    <button type="button" onclick="togglePasswordVisibility('new-pass-input', this)" aria-label="Mostrar password" style="position: absolute; top: 50%; right: 12px; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.65); cursor: pointer; padding: 0; font-size: 1rem;">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                <div style="position: relative; margin-bottom: 8px;">
+                    <input type="password" id="new-pass-confirm" placeholder="Confirmar nova password" autocomplete="new-password" style="width: 100%; padding: 12px 44px 12px 16px; box-sizing: border-box; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: white; font-size: 0.9rem; outline: none;">
+                    <button type="button" onclick="togglePasswordVisibility('new-pass-confirm', this)" aria-label="Mostrar password" style="position: absolute; top: 50%; right: 12px; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.65); cursor: pointer; padding: 0; font-size: 1rem;">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            <p id="change-pass-msg" style="text-align: center; font-size: 0.8rem; color: #ff4757; min-height: 1.2em; margin: 0 0 16px;"></p>
+            <button class="btn-primary" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #ffb347 0%, #ff9800 100%); border: 1px solid rgba(255,179,71,0.45); box-shadow: 0 10px 24px rgba(255,152,0,0.18);" onmouseover="this.style.boxShadow='0 12px 28px rgba(255,152,0,0.28)'" onmouseout="this.style.boxShadow='0 10px 24px rgba(255,152,0,0.18)'" onclick="guardarNovaPassword()">
+                <i class="fa-solid fa-lock"></i> Guardar Password
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: Resposta do Alerta do Utilizador -->
+    <div id="modal-resposta-usuario" class="modal-overlay" style="z-index: 9998;">
+        <div class="modal-content modal-small" style="max-width: 450px;">
+            <div class="modal-header" id="resposta-header-container">
+                <h2 class="modal-title" id="resposta-modal-title" style="margin:0;">Alerta Respondido</h2>
+                <button class="modal-close" onclick="fecharModalRespostaUsuario()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="padding: 20px; text-align: center;">
+                <div id="resposta-icon-container" style="font-size: 3.5rem; margin-bottom: 16px;">
+                    <i class="fa-solid fa-circle-check" style="color: #70AD47;"></i>
+                </div>
+                <div id="resposta-status" style="font-size: 1.8rem; font-weight: 900; margin-bottom: 10px; text-transform: uppercase;">ACEITE</div>
+                <div id="resposta-tear" style="font-size: 0.95rem; color: rgba(255,255,255,0.7); margin-bottom: 20px;">Tear <span id="resposta-tear-numero">--</span></div>
+                
+                <div style="background: rgba(255,255,255,0.05); border-left: 3px solid #70AD47; border-radius: 4px; padding: 16px; margin-bottom: 20px; text-align: left;">
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 8px; font-weight: bold;">Mensagem Original:</div>
+                    <div id="resposta-alerta-msg" style="font-size: 0.95rem; color: white; line-height: 1.4; font-weight: 500;">--</div>
+                </div>
+
+                <div id="resposta-detalhes-container" style="background: rgba(255,255,255,0.05); border-radius: 4px; padding: 14px; margin-bottom: 20px; text-align: left; display: none;">
+                    <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 8px; font-weight: bold;">Resposta/Justificação:</div>
+                    <div id="resposta-detalhes-texto" style="font-size: 0.9rem; color: #ffa500; line-height: 1.4; font-style: italic;">--</div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-bottom: 24px;">
+                    <div>
+                        <div style="font-weight: bold; margin-bottom: 4px;">Respondido por:</div>
+                        <div id="resposta-por" style="color: white;">--</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: bold; margin-bottom: 4px;">Data e Hora:</div>
+                        <div id="resposta-hora" style="color: white;">--</div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-primary" style="width: 100%; padding: 14px;" onclick="fecharModalRespostaUsuario()">Fechar</button>
+        </div>
+    </div>
+
+    <script src="src/js/navigation-menu.js?v=1"></script>
+    <script src="src/js/dashboard-maquinas-tv.js?v=1"></script>
+    <script>
+        const database = jwayDB;
+        
+        let db = { maquinas: {}, layout: Array(40).fill(null), alertas: {}, utilizadores: [], config: {} };
+        let currentUserFabrica = null;
+        let currentUserCategory = null; 
+        
+        let filtroStatusDash = null;
+        let filtroAtualStatus = null;
+        let filtroAtualTear = null;
+        let historicoCompletoView = [];
+        let historicoMostradoView = 50;
+        let dashboardLoaderReady = false;
+        let dashboardInitLayoutReady = false;
+        let dashboardInitMaquinasReady = false;
+
+        function hideDashboardLoader() {
+            if (dashboardLoaderReady) return;
+            dashboardLoaderReady = true;
+            const loader = document.getElementById('loader');
+            if (!loader) return;
+            loader.classList.add('hidden');
+            setTimeout(() => { loader.style.display = 'none'; }, 230);
+        }
+
+        function tryHideDashboardLoader() {
+            if (dashboardInitLayoutReady && dashboardInitMaquinasReady) {
+                hideDashboardLoader();
+            }
+        }
+
+        setTimeout(() => hideDashboardLoader(), 12000);
+
+        window.addEventListener('scroll', function() {
+            const btnTop = document.getElementById('btnBackToTop');
+            if (!btnTop) return;
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                btnTop.classList.add('show');
+            } else {
+                btnTop.classList.remove('show');
+            }
+        });
+
+        window.scrollToTop = function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        
+        const categoryColors = window.JwayCatColors;
+
+        function getCategoriaEmoji(cat) { 
+            if (cat.includes('Desenho')) return '<i class="fa-solid fa-pen-ruler"></i>'; 
+            if (cat.includes('Operador') || cat.includes('Maquinista')) return '<i class="fa-solid fa-gears"></i>'; 
+            if (cat.includes('Assistente') || cat.includes('Auxiliar')) return '<i class="fa-solid fa-clipboard-list"></i>'; 
+            if (cat.includes('Comercial')) return '<i class="fa-solid fa-briefcase"></i>'; 
+            if (cat.includes('Administrador') || cat.includes('Administração') || cat.includes('Admin')) return '<i class="fa-solid fa-shield-halved"></i>'; 
+            return '<i class="fa-solid fa-user"></i>'; 
+        }
+
+        // ========================================================
+        // O PORTEIRO: Verifica a Sessão e decide se abre a página
+        // ========================================================
+        document.addEventListener("DOMContentLoaded", () => {
+            const sess = window.JwaySession.get();
+            const userName = sess.nome;
+            const userCat = sess.categoria;
+            const isAdmin = sess.isAdmin;
+
+            // SE NÃO TEM SESSÃO, VAI PARA O INDEX
+            if (!userName) {
+                window.location.replace('index.html');
+                return;
+            }
+
+            // SE TEM SESSÃO, ENTRA!
+            document.getElementById('main-content').style.display = 'block';
+            currentUserFabrica = userName;
+            currentUserCategory = userCat || 'Operador (Maquinista)';
+
+            const userColor = (categoryColors[currentUserCategory] || {}).color || '#ffffff';
+            const nameEl = document.getElementById('logged-user-name');
+            const catEl = document.getElementById('logged-user-category');
+            
+            if(nameEl) { 
+                nameEl.innerText = currentUserFabrica; 
+                nameEl.style.color = "white"; 
+            }
+            if(catEl) { 
+                catEl.innerHTML = `${getCategoriaEmoji(currentUserCategory)} ${currentUserCategory}`; 
+                catEl.style.color = userColor; 
+            }
+
+            const avStyle = categoryColors[currentUserCategory] || { color: '#00a8ff', bg: 'rgba(0,168,255,0.12)', border: 'rgba(0,168,255,0.35)' };
+            const avPartes = currentUserFabrica.trim().split(/\s+/);
+            const avInitials = avPartes.length >= 2 ? (avPartes[0][0] + avPartes[avPartes.length - 1][0]).toUpperCase() : (avPartes[0][0] || '?').toUpperCase();
+            const avEl = document.getElementById('topbar-avatar-dashboard');
+            if (avEl) {
+                avEl.textContent = avInitials;
+                avEl.style.background = avStyle.bg;
+                avEl.style.borderColor = avStyle.border;
+                avEl.style.color = avStyle.color;
+            }
+
+            renderNavigationMenu(isAdmin);
+
+            const adminOnlyActionIds = ['btn-tv-mode', 'btn-tv-floating'];
+            adminOnlyActionIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.style.display = isAdmin ? '' : 'none';
+            });
+            if (!isAdmin) localStorage.removeItem('jwayTvMode');
+
+            setInterval(updateClock, 1000); updateClock();
+            sincronizar();
+            monitorarRespostasAlertas();
+            verificarPrimeiroLogin();
+
+            if (window.initTvModeFromStorage) window.initTvModeFromStorage();
+        });
+
+        window.confirmar = function(mensagem, icone = 'question') {
+            return new Promise(resolve => {
+                const modal = document.getElementById('modal-confirm');
+                const msgEl = document.getElementById('confirm-message');
+                const iconEl = document.getElementById('confirm-icon');
+                const btnOk = document.getElementById('confirm-ok');
+                const btnCancel = document.getElementById('confirm-cancel');
+
+                const iconMap = {
+                    question: '<i class="fa-solid fa-circle-question" style="color: var(--jway-blue);"></i>',
+                    warn:     '<i class="fa-solid fa-triangle-exclamation" style="color: #ffa466;"></i>',
+                    danger:   '<i class="fa-solid fa-circle-exclamation" style="color: #ff4757;"></i>'
+                };
+                iconEl.innerHTML = iconMap[icone] || iconMap.question;
+                msgEl.textContent = mensagem;
+                modal.style.display = 'flex';
+
+                const fechar = (resultado) => {
+                    modal.style.display = 'none';
+                    btnOk.removeEventListener('click', onOk);
+                    btnCancel.removeEventListener('click', onCancel);
+                    resolve(resultado);
+                };
+                const onOk = () => fechar(true);
+                const onCancel = () => fechar(false);
+                btnOk.addEventListener('click', onOk);
+                btnCancel.addEventListener('click', onCancel);
+            });
+        };
+
+        window.showToast = function(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? '<i class="fa-solid fa-circle-check"></i>' : type === 'error' ? '<i class="fa-solid fa-circle-xmark"></i>' : '<i class="fa-solid fa-circle-info"></i>';
+            toast.innerHTML = `<span style="font-size:1.2rem;">${icon}</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            
+            void toast.offsetWidth;
+            toast.classList.add('show');
+            
+            setTimeout(() => { 
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function encriptarPasswordDash(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function togglePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button ? button.querySelector('i') : null;
+            if (!input || !icon) return;
+
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            icon.className = isHidden ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+            button.setAttribute('aria-label', isHidden ? 'Esconder password' : 'Mostrar password');
+        }
+
+        function verificarPrimeiroLogin() {
+            if (localStorage.getItem('jwayFirstLogin') === 'true') {
+                document.getElementById('modal-change-pass').style.display = 'flex';
+            }
+        }
+
+        async function guardarNovaPassword() {
+            const nova = document.getElementById('new-pass-input').value;
+            const confirma = document.getElementById('new-pass-confirm').value;
+            const msgEl = document.getElementById('change-pass-msg');
+            msgEl.textContent = '';
+
+            if (nova.length < 6) {
+                msgEl.textContent = 'A password deve ter pelo menos 6 caracteres.';
+                return;
+            }
+            if (nova !== confirma) {
+                msgEl.textContent = 'As passwords não coincidem.';
+                return;
+            }
+
+            const usernameAtivo = window.JwaySession.get().ativo;
+            if (!usernameAtivo) { window.location.replace('index.html'); return; }
+
+            try {
+                const snapshot = await database.ref('dados/utilizadores').once('value');
+                const users = snapshot.val();
+                let userKey = null;
+                Object.keys(users || {}).forEach(k => {
+                    if (users[k] && users[k].utilizador === usernameAtivo) userKey = k;
+                });
+
+                if (!userKey) {
+                    msgEl.textContent = 'Erro: utilizador não encontrado. Contacte o administrador.';
+                    return;
+                }
+
+                const novaHash = await encriptarPasswordDash(nova);
+                await database.ref(`dados/utilizadores/${userKey}`).update({
+                    password: novaHash,
+                    mustChangePassword: false
+                });
+
+                window.JwaySession.clearFirstLogin();
+                document.getElementById('modal-change-pass').style.display = 'none';
+                showToast('Password definida com sucesso!', 'success');
+            } catch (e) {
+                console.error(e);
+                msgEl.textContent = 'Erro ao guardar. Tente novamente.';
+            }
+        }
+
+        function fazerLogout() {
+            jwayAuth.signOut().catch(() => {});
+            window.JwaySession.clear();
+            window.location.replace('index.html');
+        }
+
+        window.isUserTyping = false;
+        window.pendingRender = false;
+
+        document.addEventListener('focusin', function(e) {
+            if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') { window.isUserTyping = true; }
+        });
+
+        document.addEventListener('focusout', function(e) {
+            window.isUserTyping = false;
+            if(window.pendingRender) {
+                window.pendingRender = false;
+                renderizar();
+                processarAlertas();
+            }
+        });
+
+        const permissoes = {
+            categorias: {
+                'Técnico de Desenho': ['Autorizado para Produção', 'Pedido de Amostra', 'Amostra Concluída', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva'],
+                'Operador (Maquinista)': ['Falta de Matéria-Prima', 'Produção Concluída', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva', 'Manutenção Concluída'],
+                'Assistente de Produção': ['Falta de Matéria-Prima', 'Produção Concluída', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva', 'Manutenção Concluída'],
+                'Administrador': ['Falta de Matéria-Prima', 'Autorizado para Produção', 'Produção Concluída', 'Pedido de Amostra', 'Amostra Concluída', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva', 'Manutenção Concluída'],
+                'Comercial': [] 
+            },
+            estados: {
+                'PREPARAÇÃO PRODUÇÃO': ['Falta de Matéria-Prima', 'Autorizado para Produção', 'Pedido de Amostra', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva'],
+                'PRODUÇÃO': ['Falta de Matéria-Prima', 'Produção Concluída', 'Pedido de Amostra', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva'],
+                'DESENVOLVIMENTO AMOSTRAS': ['Pedido de Amostra', 'Amostra Concluída', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva'],
+                'MANUTENÇÃO': ['Pedido de Amostra', 'Pedido de Manutenção Preventiva', 'Manutenção Concluída'],
+                'PARADO': ['Pedido de Amostra', 'Avaria Mecânica', 'Pedido de Manutenção Preventiva'],
+                'AVARIADA': []
+            }
+        };
+
+        permissoes.categorias['Técnicos de Desenho'] = permissoes.categorias['Técnico de Desenho'];
+        permissoes.categorias['Operadores (Maquinistas)'] = permissoes.categorias['Operador (Maquinista)'];
+        permissoes.categorias['Auxiliar de Produção'] = permissoes.categorias['Assistente de Produção'];
+        permissoes.categorias['Administração'] = permissoes.categorias['Administrador'];
+        permissoes.categorias['Comerciais'] = permissoes.categorias['Comercial'];
+
+        function parseDatePT(dateStr) {
+            if (!dateStr) return 0;
+            try {
+                const parts = dateStr.split(' ');
+                const dateParts = parts[0].split('/');
+                const timeParts = parts[1] ? parts[1].split(':') : ['00', '00'];
+                return new Date(dateParts[2], dateParts[1] - 1, dateParts[0], timeParts[0], timeParts[1]).getTime();
+            } catch (e) { return 0; }
+        }
+
+        function updateClock() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) clockEl.innerText = new Date().toLocaleDateString('pt-PT', options).toUpperCase();
+        }
+        
+        function sincronizar() { 
+            database.ref('dados/config').on('value', snap => { if(snap.val()) { db.config = snap.val(); verificarERenderizar(); } });
+            
+            database.ref('dados/layout').on('value', snap => {
+                const layoutData = snap.val();
+                let totalSlots = (db.config && db.config.totalSlots) ? parseInt(db.config.totalSlots) : 40;
+                let layoutCorrigido = Array(totalSlots).fill(null);
+                
+                if (layoutData && Array.isArray(layoutData)) {
+                    layoutData.forEach((val, i) => { if(i < totalSlots) layoutCorrigido[i] = val; });
+                } else if (layoutData && typeof layoutData === 'object') {
+                    Object.keys(layoutData).forEach(key => {
+                        let i = parseInt(key);
+                        if(!isNaN(i) && i < totalSlots) layoutCorrigido[i] = layoutData[key];
+                    });
+                }
+                db.layout = layoutCorrigido;
+                dashboardInitLayoutReady = true;
+                tryHideDashboardLoader();
+                verificarERenderizar();
+            });
+
+            database.ref('dados/utilizadores').on('value', snap => {
+                db.utilizadores = snap.val() || [];
+                verificarERenderizar();
+            });
+
+            database.ref('dados/maquinas').on('value', snap => {
+                db.maquinas = snap.val() || {};
+                dashboardInitMaquinasReady = true;
+                tryHideDashboardLoader();
+                verificarERenderizar();
+            });
+
+            database.ref('dados/alertas').on('value', snap => {
+                db.alertas = snap.val() || {};
+                verificarERenderizar();
+            });
+        }
+
+        function verificarERenderizar() {
+            if (window.isUserTyping) { window.pendingRender = true; } else {
+                if (currentUserFabrica) { renderizar(); processarAlertas(); }
+            }
+        }
+
+        function getIconObj(status) {
+            switch(status) {
+                case 'PRODUÇÃO':              return { class: 'fa-solid fa-gear fa-spin',              color: '#8be05e' };
+                case 'PREPARAÇÃO PRODUÇÃO':   return { class: 'fa-solid fa-screwdriver-wrench fa-fade', color: '#ffe666' };
+                case 'DESENVOLVIMENTO AMOSTRAS': return { class: 'fa-brands fa-laravel fa-fade',       color: '#8aa6c9' };
+                case 'MANUTENÇÃO':            return { class: 'fa-solid fa-wrench fa-shake',           color: '#ff6666' };
+                case 'PARADO':               return { class: 'fa-solid fa-circle-pause fa-fade',      color: '#ffa466' };
+                case 'AVARIADA':             return { class: 'fa-solid fa-ban fa-fade',               color: '#8ba6c1' };
+                default:                     return { class: 'fa-solid fa-circle-question',            color: '#9aa8b7' };
+            }
+        }
+
+        window.toggleMenuNav = function(e) { 
+            e.stopPropagation(); 
+            document.getElementById('menu-nav-dropdown').classList.toggle('show'); 
+        };
+
+        window.addEventListener('click', function(e) { 
+            const menu = document.getElementById('menu-nav-dropdown'); 
+            if (menu && menu.classList.contains('show') && !menu.contains(e.target)) { 
+                menu.classList.remove('show'); 
+            } 
+        });
+
+        window.toggleFiltroStatus = function(s) {
+            if (filtroStatusDash === s) {
+                filtroStatusDash = null; 
+                document.getElementById('btn-clear-filters').style.display = 'none';
+            } else {
+                filtroStatusDash = s;
+                document.getElementById('btn-clear-filters').style.display = 'flex';
+                const gridElem = document.getElementById('mainGrid');
+                if (gridElem) {
+                    const yOffset = -20; 
+                    const y = gridElem.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                }
+            }
+            renderDashboards();
+            window.filtrarTeares();
+        }
+
+        window.filtrarTeares = function() {
+            const elPesquisa = document.getElementById('searchInput');
+            const termo = elPesquisa ? elPesquisa.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+            const slots = document.querySelectorAll('.dashboard-grid .slot');
+            
+            if (termo.length > 0) { document.getElementById('btn-clear-filters').style.display = 'flex'; } 
+            else if (!filtroStatusDash) { document.getElementById('btn-clear-filters').style.display = 'none'; }
+            
+            slots.forEach(slot => {
+                const textoEscondido = slot.getAttribute('data-search');
+                const statusSlot = slot.getAttribute('data-status');
+                
+                if (!textoEscondido || textoEscondido === 'vazio') {
+                    slot.style.display = (termo === '' && !filtroStatusDash) ? '' : 'none';
+                    return;
+                }
+                
+                const matchTexto = (termo === '' || textoEscondido.includes(termo));
+                const matchStatus = (!filtroStatusDash || statusSlot === filtroStatusDash);
+                
+                if (matchTexto && matchStatus) { slot.style.display = ''; } else { slot.style.display = 'none'; }
+            });
+
+            // Quando há filtro por estado ativo, mostra os teares por ordem numérica.
+            if (filtroStatusDash) {
+                const slotsVisiveis = Array.from(slots)
+                    .filter(slot => slot.style.display !== 'none' && slot.id && slot.id.startsWith('slot-tear-'))
+                    .sort((a, b) => {
+                        const idA = a.id.replace('slot-tear-', '');
+                        const idB = b.id.replace('slot-tear-', '');
+                        return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+
+                slotsVisiveis.forEach((slot, idx) => {
+                    slot.style.order = String(idx + 1);
+                });
+
+                Array.from(slots)
+                    .filter(slot => !slotsVisiveis.includes(slot))
+                    .forEach(slot => { slot.style.order = ''; });
+            } else {
+                Array.from(slots).forEach(slot => { slot.style.order = ''; });
+            }
+        }
+        
+        window.destacarTear = function(idTear) {
+            if(idTear === 'GERAL') return;
+            fecharListaAlertas(); 
+            
+            const searchInput = document.getElementById('searchInput');
+            if(searchInput) { searchInput.value = ''; window.filtrarTeares(); }
+            
+            setTimeout(() => {
+                const slot = document.getElementById(`slot-tear-${idTear}`);
+                if(slot) {
+                    const yOffset = -100;
+                    const y = slot.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                    
+                    const card = slot.querySelector('.tear-card');
+                    if(card) {
+                        card.classList.remove('highlight-find');
+                        void card.offsetWidth; 
+                        card.classList.add('highlight-find');
+                    }
+                }
+            }, 300);
+        }
+
+        function togglePlaneamento(id) { 
+            const el = document.getElementById(`overlay-${id}`);
+            if(el) el.classList.toggle('active'); 
+        }
+
+        function renderizar() {
+            const grid = document.getElementById('mainGrid');
+            if (!grid || document.querySelectorAll('.overlay-plan.active').length > 0) return; 
+
+            const maquinasComAlerta = [];
+            Object.values(db.alertas || {}).forEach(al => { 
+                if(al && al.status === 'pendente' && isAlertaVisivelFabrica(al)) maquinasComAlerta.push(al.tear); 
+            });
+
+            grid.innerHTML = '';
+            let colunas = (db.config && db.config.colunas) ? parseInt(db.config.colunas) : 4;
+            grid.style.gridTemplateColumns = `repeat(${colunas}, 1fr)`;
+            
+            const layoutAtual = db.layout || Array(40).fill(null);
+            
+            layoutAtual.forEach((idTear, index) => {
+                const slot = document.createElement('div');
+                slot.className = 'slot ' + (idTear ? '' : 'empty-slot');
+                const alturaConfig = (db.config && db.config.tamanhoCartao) ? parseInt(db.config.tamanhoCartao) : NaN;
+                const alturaFinalNormal = Number.isFinite(alturaConfig) ? Math.min(alturaConfig, 280) : 240;
+                const alturaFinal = (window.tvModeAtivo === true) ? Math.min(alturaFinalNormal, 205) : alturaFinalNormal;
+                slot.style.minHeight = `${alturaFinal}px`;
+                
+                if (idTear && db.maquinas && db.maquinas[idTear]) {
+                    
+                    slot.id = `slot-tear-${idTear}`;
+
+                    let numOrder = parseInt(String(idTear).replace(/\D/g, ''));
+                    if (!isNaN(numOrder)) { slot.style.setProperty('--mobile-order', numOrder); }
+
+                    const m = db.maquinas[idTear];
+                    const s = m.status || 'PARADO';
+                    
+                    slot.setAttribute('data-status', s); 
+                    
+                    let termosPesquisa = `${idTear} `.toLowerCase();
+                    if (m.cliente) termosPesquisa += m.cliente.toLowerCase() + " ";
+                    if (m.modelo) termosPesquisa += m.modelo.toLowerCase() + " ";
+                    if (m.desenhador) termosPesquisa += m.desenhador.toLowerCase() + " ";
+                    if (m.status) termosPesquisa += m.status.toLowerCase() + " ";
+
+                    let filaArray = [];
+                    if (Array.isArray(m.fila)) { filaArray = m.fila; } 
+                    else if (m.fila && typeof m.fila === 'object') { filaArray = Object.values(m.fila); }
+
+                    filaArray.forEach(t => {
+                        if(t && t.cliente) termosPesquisa += t.cliente.toLowerCase() + " ";
+                        if(t && t.modelo) termosPesquisa += t.modelo.toLowerCase() + " ";
+                        if(t && t.desenhador) termosPesquisa += t.desenhador.toLowerCase() + " ";
+                    });
+                    
+                    termosPesquisa = termosPesquisa.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    slot.setAttribute('data-search', termosPesquisa);
+
+                    const temAlerta = maquinasComAlerta.includes(idTear);
+                    const stClass = s.toLowerCase().replace(/ /g, "_").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const polDisplay = m.pol ? String(m.pol).replace(/"/g, '') + '"' : '--';
+
+                    const isAvariada = s === 'AVARIADA';
+                    const isManutencao = s === 'MANUTENÇÃO';
+                    const isParado = s === 'PARADO';
+
+                    const isDarkText = (s === 'PRODUÇÃO' || s === 'PREPARAÇÃO PRODUÇÃO');
+                    const textColor = isDarkText ? '#000' : '#fff';
+                    const lblColor = isDarkText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
+                    const iconObj = getIconObj(s);
+                    const destacarIconeCorpo = ['PRODUÇÃO', 'PREPARAÇÃO PRODUÇÃO', 'DESENVOLVIMENTO AMOSTRAS'].includes(s);
+                    const cardBodyIconSize = destacarIconeCorpo ? '4.06rem' : '2.9rem';
+                    const cardBodyIconOpacity = destacarIconeCorpo ? '0.42' : '1';
+                    const cardBodyIconWrapperSize = destacarIconeCorpo ? '96px' : '76px';
+
+                    const temTarefas = filaArray.some(f => f && f.tipo && f.tipo !== 'PARADO');
+                    const btnPlanClass = temTarefas ? 'btn-plan btn-glow-tarefas' : 'btn-plan';
+
+                    let cardBodyHtml = '';
+                    if (isAvariada || isManutencao || isParado) {
+                        let iconeEstado = isAvariada
+                            ? "fa-solid fa-ban fa-fade"
+                            : (isParado ? "fa-solid fa-circle-pause fa-fade" : "fa-solid fa-wrench fa-shake");
+                        let textoEstado = isAvariada
+                            ? 'AVARIADA'
+                            : (isParado ? 'S/ ATIVIDADE' : 'MANUTENÇÃO');
+                        
+                        cardBodyHtml = `
+                            <div class="card-body" style="padding: 10px 15px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; background: transparent;">
+                                <i class="${iconeEstado}" style="font-size: 4rem; color: ${textColor}; opacity: 0.3; margin-bottom: 10px;"></i>
+                                <div style="font-size:1.6rem; font-weight:900; opacity:0.3; text-align:center; text-transform:uppercase; letter-spacing:2px; color:${textColor};">
+                                    ${textoEstado}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        cardBodyHtml = `
+                            <div class="card-body" style="padding: 10px 15px; flex-grow: 1; display: flex; flex-direction: row; align-items: center; justify-content: space-between; background: transparent; gap: 10px;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 0.65rem; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; color:${lblColor}; -webkit-text-fill-color:${lblColor};">
+                                        ${(s === 'DESENVOLVIMENTO AMOSTRAS') ? 'TÉCNICO' : 'CLIENTE'}
+                                    </div>
+                                    <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 8px; color:${textColor}; -webkit-text-fill-color:${textColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${(s === 'DESENVOLVIMENTO AMOSTRAS' ? m.desenhador : (m.cliente || m.client)) || '--'}
+                                    </div>
+                                    <div style="font-size: 0.65rem; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; color:${lblColor}; -webkit-text-fill-color:${lblColor};">
+                                        ARTIGO
+                                    </div>
+                                    <div style="font-size: 1.1rem; font-weight: bold; color:${textColor}; -webkit-text-fill-color:${textColor}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        ${m.modelo || '--'}
+                                    </div>
+                                </div>
+                                <div style="width: ${cardBodyIconWrapperSize}; min-width: ${cardBodyIconWrapperSize}; height: ${cardBodyIconWrapperSize}; display: flex; align-items: center; justify-content: center; flex-shrink: 0; align-self: center; transform: translateY(-42px);">
+                                    <i class="${iconObj.class}" style="font-size: ${cardBodyIconSize}; color: ${iconObj.color}; -webkit-text-fill-color: ${iconObj.color}; opacity: ${cardBodyIconOpacity};"></i>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let notifyBtn = '';
+                    if (currentUserCategory === 'Comercial' || currentUserCategory === 'Comerciais') {
+                        notifyBtn = `<button class="btn-alert-locked" style="flex:1;" title="Bloqueado"><i class="fa-solid fa-lock"></i> Bloqueado</button>`;
+                    } else {
+                        if (isAvariada) {
+                            notifyBtn = `<button class="btn-alert" style="flex:1;" onclick="abrirModalAlertaGeral('Tear ${idTear} em estado AVARIADA: ')" title="Notificar Geral"><i class="fa-solid fa-bell"></i> Notificar</button>`;
+                        } else {
+                            notifyBtn = `<button class="btn-alert" style="flex:1;" onclick="abrirModalAlerta('${idTear}')" title="Notificar Paragem"><i class="fa-solid fa-bell"></i> Notificar</button>`;
+                        }
+                    }
+
+                    let cardFooterHtml = '';
+                    if (isAvariada) {
+                         cardFooterHtml = `
+                            <div class="card-footer" style="background: transparent; display: flex; flex-direction: column; gap: 10px; padding: 12px 15px; border-top: none; border-radius: 0 0 10px 10px;">
+                                <div class="footer-buttons" style="display: flex; gap: 10px; width: 100%;">
+                                    ${notifyBtn}
+                                </div>
+                                <div class="last-update" style="font-size: 0.6rem; font-weight: 700; opacity: 0.9; color: #9aa8b7; -webkit-text-fill-color: #9aa8b7; text-align: left;">Atualizado: ${m.lastUpdate || '--'}</div>
+                            </div>
+                        `;
+                    } else {
+                        cardFooterHtml = `
+                            <div class="card-footer" style="background: transparent; display: flex; flex-direction: column; gap: 10px; padding: 12px 15px; border-top: none; border-radius: 0 0 10px 10px;">
+                                <div class="footer-buttons" style="display: flex; gap: 10px; width: 100%;">
+                                    <button class="${btnPlanClass}" style="flex: 1;" onclick="togglePlaneamento('${idTear}')"><i class="fa-solid fa-list-check"></i> Tarefas</button>
+                                    ${notifyBtn}
+                                </div>
+                                <div class="last-update" style="font-size: 0.6rem; font-weight: 700; opacity: 0.9; color: #9aa8b7; -webkit-text-fill-color: #9aa8b7; text-align: left;">Atualizado: ${m.lastUpdate || '--'}</div>
+                            </div>
+                        `;
+                    }
+
+                    let filaHtml = filaArray.map((f, i) => {
+                        if (!f) return '';
+                        const t = f.tipo || 'PARADO';
+                        if (t === 'PARADO') return ''; 
+                        const cl = {'PRODUÇÃO':'bl-producao','PREPARAÇÃO PRODUÇÃO':'bl-preparacao','DESENVOLVIMENTO AMOSTRAS':'bl-amostras'}[t] || '';
+                        return `<div class="plan-slot ${cl}"><div class="slot-tipo" style="font-size: 0.65rem; font-weight: 900; opacity: 0.6; margin-bottom: 4px; text-transform: uppercase;">${i+1}º ${t}</div><div class="slot-detalhe" style="font-weight: bold;">${f.cliente || f.desenhador || ''} ${f.modelo || ''}</div></div>`;
+                    }).join('');
+
+                    if (filaHtml === '') {
+                        filaHtml = '<div style="text-align: center; padding: 20px; opacity: 0.4; font-size: 0.8rem; font-style: italic;">Sem tarefas agendadas.</div>';
+                    }
+
+                    slot.innerHTML = `
+                        <div class="tear-card bg-${stClass} ${temAlerta?'alert-active':''}">
+                            ${temAlerta?`<div class="alert-bar" onclick="abrirListaAlertas('pendente', '${idTear}')"><i class="fa-solid fa-triangle-exclamation"></i> Em Análise</div>`:''}
+                            
+                            <div class="status-header" style="padding: 15px 15px 5px 15px; position: relative; display: flex; flex-direction: column; align-items: flex-start; background: transparent;">
+                                <div class="status-badge" style="position: absolute; top: 15px; right: 15px; padding: 4px 8px; font-size: 0.65rem; font-weight: 900; border-radius: 4px; border: 1px solid currentColor; color: ${textColor}; -webkit-text-fill-color: ${textColor}; text-transform: uppercase;"><i class="${iconObj.class}" style="margin-right: 5px; color: ${textColor}; -webkit-text-fill-color: ${textColor};"></i>${s}</div>
+                                <span class="tear-label" style="color:${textColor}; -webkit-text-fill-color:${textColor}; font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 0px; line-height: 1;">TEAR</span>
+                                <h2 class="tear-id" style="color:${textColor}; -webkit-text-fill-color:${textColor}; margin: 4px 0 6px 0; font-size: 2.2rem; font-weight: 900; line-height: 0.9; letter-spacing: -1px;">${idTear}</h2>
+                                <div class="tear-info-top" style="color:${textColor}; -webkit-text-fill-color:${textColor}; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">
+                                    ${m.tipo || '--'} | ${polDisplay}
+                                </div>
+                            </div>
+                            
+                            ${cardBodyHtml}
+                            ${cardFooterHtml}
+
+                            <div id="overlay-${idTear}" class="overlay-plan">
+                                <div class="overlay-header">
+                                    <h3 style="margin: 0; font-size: 0.9rem; color: var(--jway-blue); font-weight: 900;">Próximas Tarefas: Tear ${idTear}</h3>
+                                    <button class="btn-close-overlay" style="background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; opacity: 0.6;" onclick="togglePlaneamento('${idTear}')"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div style="flex-grow:1; overflow-y:auto; color: white;">${filaHtml}</div>
+                            </div>
+                        </div>
+                    `;
+                } else { 
+                    slot.setAttribute('data-search', 'vazio');
+                    slot.innerHTML = ``; 
+                    slot.classList.add('empty-slot');
+                    slot.style.setProperty('--mobile-order', 99999);
+                }
+                grid.appendChild(slot);
+            });
+            
+            renderDashboards();
+            window.filtrarTeares();
+        }
+
+        function renderDashboards() {
+            const statusInfo = {
+                'PRODUÇÃO': { count: 0, maquinas: [] },
+                'PREPARAÇÃO PRODUÇÃO': { count: 0, maquinas: [] },
+                'DESENVOLVIMENTO AMOSTRAS': { count: 0, maquinas: [] },
+                'MANUTENÇÃO': { count: 0, maquinas: [] },
+                'PARADO': { count: 0, maquinas: [] },
+                'AVARIADA': { count: 0, maquinas: [] }
+            };
+            
+            const designersInfo = {};
+            const colorMap = {
+                'PRODUÇÃO':'var(--color-producao)',
+                'PREPARAÇÃO PRODUÇÃO':'var(--color-preparacao)',
+                'DESENVOLVIMENTO AMOSTRAS':'var(--color-amostras)',
+                'MANUTENÇÃO':'var(--color-manutencao)',
+                'PARADO':'var(--color-parado)',
+                'AVARIADA':'#19232D'
+            };
+            
+            let temMaquinas = false;
+
+            Object.entries(db.maquinas || {}).forEach(([id, m]) => { 
+                temMaquinas = true;
+                
+                if(m && m.status && statusInfo[m.status]) {
+                    statusInfo[m.status].count++;
+                    let polStr = m.pol ? String(m.pol).replace(/"/g, '') + '"' : '--';
+                    statusInfo[m.status].maquinas.push(`Tear ${id} (${polStr})`);
+                }
+                
+                if(m && m.status === 'DESENVOLVIMENTO AMOSTRAS' && m.desenhador) {
+                    if (!designersInfo[m.desenhador]) {
+                        designersInfo[m.desenhador] = { count: 0, maquinas: [] };
+                    }
+                    designersInfo[m.desenhador].count++;
+                    let polStr = m.pol ? String(m.pol).replace(/"/g, '') + '"' : '--';
+                    designersInfo[m.desenhador].maquinas.push(`Tear ${id} (${polStr})`);
+                }
+            });
+            
+            const elStatus = document.getElementById('dash-status');
+            if(elStatus) {
+                if (temMaquinas) {
+                    elStatus.innerHTML = Object.keys(statusInfo).map(s => {
+                        let tooltipHTML = '';
+                        let hoverClass = '';
+                        
+                        if (statusInfo[s].count > 0) {
+                            hoverClass = 'tooltip-container';
+                            tooltipHTML = `
+                            <div class="custom-tooltip">
+                                <div style="color: ${colorMap[s]}; font-weight: 900; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">Teares em ${s}</div>
+                                ${statusInfo[s].maquinas.map(maq => `<div><i class="fa-solid fa-gear"></i> ${maq}</div>`).join('')}
+                            </div>`;
+                        }
+
+                        let activeClass = (filtroStatusDash === s) ? 'active-filter' : '';
+                        const sIconObj = getIconObj(s);
+                        const statusIconClass = s.toLowerCase().replace(/ /g, '_').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+                        return `
+                        <div class="dash-card clickable ${hoverClass} ${activeClass}" style="border-bottom: 4px solid ${colorMap[s]};" onclick="window.toggleFiltroStatus('${s}')">
+                            <div class="dash-card-icon dash-card-icon--${statusIconClass}" style="color:${colorMap[s]}"><i class="${sIconObj.class}"></i></div>
+                            <div class="dash-card-value" style="color:${colorMap[s]}">${statusInfo[s].count}</div>
+                            <div class="dash-card-label">${s}</div>
+                            ${tooltipHTML}
+                        </div>`;
+                    }).join('');
+                } else {
+                    elStatus.innerHTML = '<div style="opacity:0.3; font-size:0.8rem; padding:10px; width:100%;">Sem dados de máquinas.</div>';
+                }
+            }
+            
+            const elDesigners = document.getElementById('dash-designers');
+            if(elDesigners) {
+                const keysDes = Object.keys(designersInfo);
+                if (keysDes.length > 0) {
+                    elDesigners.innerHTML = keysDes.map(d => `
+                        <div class="dash-card tooltip-container" style="border-bottom: 4px solid var(--jway-blue);">
+                            <div class="dash-card-value">${designersInfo[d].count}</div>
+                            <div class="dash-card-label">${d}</div>
+                            
+                            <div class="custom-tooltip">
+                                <div style="color: var(--jway-blue); font-weight: 900; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">Máquinas Atribuídas</div>
+                                ${designersInfo[d].maquinas.map(maq => `<div><i class="fa-solid fa-gear"></i> ${maq}</div>`).join('')}
+                            </div>
+                        </div>`).join('');
+                } else {
+                    elDesigners.innerHTML = '<div style="opacity:0.3; font-size:0.8rem; padding:10px; width:100%;">Sem teares em amostras de momento.</div>';
+                }
+            }
+        }
+
+        function isAlertaVisivelFabrica(alerta) {
+            return !(alerta && alerta.alvo === 'admin');
+        }
+
+        function processarAlertas() {
+            if (!currentUserFabrica) return;
+
+            const alertasPendentes = Object.entries(db.alertas || {}).filter(([id, al]) => al && al.status === 'pendente' && isAlertaVisivelFabrica(al));
+            const badge = document.getElementById('badge-alertas');
+            const numAlertas = alertasPendentes.length;
+
+            if (badge) {
+                if (numAlertas > 0) { 
+                    badge.innerText = numAlertas; 
+                    badge.style.display = 'block'; 
+                } else { 
+                    badge.style.display = 'none'; 
+                }
+            }
+
+            document.title = 'Jway - Painel de Estado das Máquinas';
+
+            const modalLista = document.getElementById('modal-lista-view');
+            if (modalLista && modalLista.style.display === 'flex') {
+                if (filtroAtualStatus && filtroAtualTear) {
+                    abrirListaAlertas(filtroAtualStatus, filtroAtualTear);
+                }
+            }
+        }
+
+        function abrirListaAlertas(filtroStatus, filtroTear) {
+            filtroAtualStatus = filtroStatus;
+            filtroAtualTear = filtroTear;
+
+            const container = document.getElementById('alert-list-container-view');
+            const titulo = document.getElementById('modal-lista-title');
+            const divFiltros = document.getElementById('historico-filters-view');
+            const btnLoadMore = document.getElementById('btn-load-more-alerts-view');
+            
+            let alertasFiltrados = Object.entries(db.alertas || {}).map(([id, al]) => ({id, ...al})).filter(al => isAlertaVisivelFabrica(al));
+
+            if (filtroStatus === 'pendente') {
+                if(divFiltros) divFiltros.style.display = 'none';
+                if(btnLoadMore) btnLoadMore.style.display = 'none';
+                alertasFiltrados = alertasFiltrados.filter(al => al.status === 'pendente');
+                if (filtroTear === 'all') {
+                    titulo.innerHTML = '<i class="fa-solid fa-bell" style="color: #ff4757;"></i> Notificações Pendentes';
+                } else {
+                    titulo.innerHTML = `<i class="fa-solid fa-bell" style="color: #ff4757;"></i> Notificações do Tear ${filtroTear}`;
+                    alertasFiltrados = alertasFiltrados.filter(al => al.tear === filtroTear);
+                }
+
+                if (alertasFiltrados.length === 0) {
+                    const msgVazia = filtroTear !== 'all'
+                        ? `O Tear ${filtroTear} não tem notificações pendentes.`
+                        : 'Sem notificações pendentes de momento.';
+                    container.innerHTML = `<div class="empty-state">${msgVazia}</div>`;
+                } else {
+                    container.innerHTML = alertasFiltrados.map(al => {
+                        let color = 'var(--color-alerta)'; 
+                        let badge = '<i class="fa-solid fa-clock"></i> EM ANÁLISE';
+                        
+                        let tearDisplay = al.tear === 'GERAL' 
+                            ? '<span class="alert-card-title" style="color: var(--color-alerta);"><i class="fa-solid fa-bullhorn"></i> ALERTA DA FÁBRICA</span>' 
+                            : `<span class="alert-card-title" style="cursor:pointer; text-decoration:underline;" onclick="window.destacarTear('${al.tear}')" title="Ver Máquina na Grelha"><i class="fa-solid fa-triangle-exclamation" style="color:#ff4757;"></i> TEAR ${al.tear}</span>`;
+
+                        return `
+                        <div style="background: rgba(255,255,255,0.05); border-left: 4px solid ${color}; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; text-align: left; margin-bottom: 12px; border-top: 1px solid rgba(255,255,255,0.02); border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                                <span style="font-weight: 900; color: white; font-size: 1.1rem; letter-spacing: -0.5px;">${tearDisplay}</span>
+                                <span style="color:${color}; font-weight:bold; font-size:0.75rem;">${badge}</span>
+                            </div>
+                            <span style="color: white; font-size:0.9rem; font-weight: bold; margin-bottom: 8px;">${al.msg}</span>
+                            <span style="color:var(--jway-blue); font-size:0.75rem; font-weight: bold;"><i class="fa-solid fa-user"></i> Registado por: ${al.responsavel || 'Desconhecido'}</span>
+                            <span style="color:rgba(255,255,255,0.4); font-size:0.65rem; font-weight: bold; margin-top: 6px;"><i class="fa-solid fa-calendar-days"></i> Registado a: ${al.hora}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+            } else {
+                if(divFiltros) divFiltros.style.display = 'flex';
+                titulo.innerHTML = '<i class="fa-solid fa-clock-rotate-left" style="color: var(--jway-blue); -webkit-text-fill-color: var(--jway-blue);"></i> Histórico de Notificações';
+                
+                const historico = alertasFiltrados.filter(al => al.status !== 'pendente');
+                
+                const tearesUnicos = [...new Set(historico.map(a => a.tear))].sort((a,b) => {
+                    if(a === 'GERAL') return -1;
+                    if(b === 'GERAL') return 1;
+                    return a - b;
+                });
+                const usersUnicos = [...new Set(historico.map(a => a.responsavel || 'Desconhecido'))].sort();
+                
+                let tFilter = document.getElementById('filter-tear-view') ? document.getElementById('filter-tear-view').value : 'ALL';
+                let uFilter = document.getElementById('filter-user-view') ? document.getElementById('filter-user-view').value : 'ALL';
+
+                if(divFiltros) {
+                    divFiltros.innerHTML = `
+                            <select id="filter-tear-view" class="theme-light-text ui-dropdown" onchange="window.resetEFiltrarHistoricoView()">
+                                <option value="ALL">- Todas as Ocorrências -</option>
+                                ${tearesUnicos.map(t => `<option value="${t}" ${tFilter===t?'selected':''}>${t === 'GERAL' ? 'Notificação Geral' : 'Tear ' + t}</option>`).join('')}
+                            </select>
+                            <select id="filter-user-view" class="theme-light-text ui-dropdown" onchange="window.renderListaHistoricoView()">
+                                <option value="ALL">- Todos os Utilizadores -</option>
+                                ${usersUnicos.map(u => `<option value="${u}" ${uFilter===u?'selected':''}>${u}</option>`).join('')}
+                            </select>
+                    `;
+                }
+                
+                historicoMostradoView = 50;
+                window.renderListaHistoricoView(historico);
+            }
+
+            document.getElementById('modal-lista-view').style.display = 'flex';
+        }
+
+        window.resetEFiltrarHistoricoView = function() {
+            historicoMostradoView = 50;
+            window.renderListaHistoricoView();
+        };
+
+        window.renderListaHistoricoView = function(preFiltrados = null) {
+            const container = document.getElementById('alert-list-container-view');
+            const btnLoadMore = document.getElementById('btn-load-more-alerts-view');
+            
+            historicoCompletoView = preFiltrados || Object.entries(db.alertas || {}).map(([id, al]) => ({id, ...al})).filter(al => al.status !== 'pendente' && isAlertaVisivelFabrica(al));
+
+            let tFilter = document.getElementById('filter-tear-view') ? document.getElementById('filter-tear-view').value : 'ALL';
+            let uFilter = document.getElementById('filter-user-view') ? document.getElementById('filter-user-view').value : 'ALL';
+
+            let alertasArray = historicoCompletoView;
+
+            if (tFilter !== 'ALL') alertasArray = alertasArray.filter(al => al.tear === tFilter);
+            if (uFilter !== 'ALL') alertasArray = alertasArray.filter(al => (al.responsavel || 'Desconhecido') === uFilter);
+
+            alertasArray.sort((a, b) => parseDatePT(b.resolvidoEm) - parseDatePT(a.resolvidoEm));
+
+            const paginatedArray = alertasArray.slice(0, historicoMostradoView);
+
+            if (paginatedArray.length === 0) {
+                container.innerHTML = `<div class="empty-state">Sem registos no histórico para os filtros selecionados.</div>`;
+                if (btnLoadMore) btnLoadMore.style.display = 'none';
+            } else {
+                container.innerHTML = paginatedArray.map(al => {
+                    let color = 'var(--color-alerta)'; 
+                    let badge = '<i class="fa-solid fa-hourglass-half"></i> EM ANÁLISE';
+                    let bgRejeicao = '';
+
+                    if (al.status === 'aceite') {
+                        color = '#70AD47';
+                        badge = '<i class="fa-solid fa-circle-check"></i> ACEITE';
+                        if (al.justificacao) {
+                            bgRejeicao = `<div class="alert-note"><strong>Resposta / Nota:</strong> <i>${al.justificacao}</i></div>`;
+                        }
+                    }
+                    if (al.status === 'rejeitado') { 
+                        color = '#ff4d4d';
+                        badge = '<i class="fa-solid fa-circle-xmark"></i> REJEITADO'; 
+                        if (al.justificacao) {
+                            bgRejeicao = `<div class="alert-note danger" style="background: rgba(255, 77, 77, 0.1); border-left: 2px solid #ff4d4d; padding: 8px; margin-top: 8px; border-radius: 4px; font-size: 0.75rem; color: #ffcccc;"><strong>Motivo:</strong> <i>${al.justificacao}</i></div>`;
+                        }
+                    }
+
+                    let tearDisplay = al.tear === 'GERAL' 
+                        ? '<span class="alert-card-title" style="color: var(--color-alerta);"><i class="fa-solid fa-bullhorn"></i> ALERTA DA FÁBRICA</span>' 
+                        : `<span class="alert-card-title" style="cursor:pointer; text-decoration:underline;" onclick="window.destacarTear('${al.tear}')" title="Ver Máquina na Grelha">TEAR ${al.tear}</span>`;
+
+                    let quemFechou = al.fechadoPor ? ` por <strong>${al.fechadoPor}</strong>` : '';
+
+                    return `
+                    <div class="alert-card${al.status === 'aceite' ? ' success' : ''}" style="border-left-color: ${color};">
+                        <div class="alert-card-body">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px; gap: 10px; flex-wrap: wrap;">
+                            <span class="alert-card-title" style="min-width: 0; flex: 1;">${tearDisplay}</span>
+                            <span style="color:${color}; font-weight:bold; font-size:0.75rem; white-space: nowrap; margin-left: auto;">${badge}</span>
+                        </div>
+                        <span class="alert-card-text" style="color: white; font-size:0.9rem; font-weight: bold; margin-bottom: 8px;">${al.msg}</span>
+                        <span class="alert-card-meta"><i class="fa-solid fa-user"></i> Registado por: ${al.responsavel || 'Desconhecido'}</span>
+                        <span class="alert-card-text" style="color:rgba(255,255,255,0.45); font-size:0.72rem;"><i class="fa-solid fa-calendar-days"></i> Criado a: ${al.hora}</span>
+                        ${al.resolvidoEm ? `<span class="alert-card-text" style="color:rgba(255, 255, 255, 0.6); font-size:0.72rem;"><i class="fa-solid fa-hourglass-end"></i> Fechado a: ${al.resolvidoEm}${quemFechou}</span>` : ''}
+                        
+                        ${bgRejeicao}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                if (btnLoadMore) {
+                    btnLoadMore.style.display = alertasArray.length > historicoMostradoView ? 'block' : 'none';
+                }
+            }
+        };
+
+        window.carregarMaisAlertasView = function() {
+            historicoMostradoView += 50;
+            window.renderListaHistoricoView();
+        };
+
+        function fecharListaAlertas() {
+            document.getElementById('modal-lista-view').style.display = 'none';
+            const btnLoadMore = document.getElementById('btn-load-more-alerts-view');
+            if (btnLoadMore) btnLoadMore.style.display = 'none';
+            filtroAtualStatus = null;
+            filtroAtualTear = null;
+            historicoMostradoView = 50;
+        }
+
+        function verificarObservacoes() {
+            const motivo = document.getElementById('alerta-motivo').value;
+            const elObs = document.getElementById('alerta-obs');
+            
+            if(elObs) {
+                if (motivo.includes('Produção Concluída') || motivo.includes('Amostra Concluída') || motivo.includes('Autorizado') || motivo.includes('Manutenção Concluída')) {
+                    elObs.style.display = 'none';
+                    elObs.value = '';
+                } else {
+                    elObs.style.display = 'block';
+                    if (motivo.includes('Pedido de Amostra')) {
+                        elObs.placeholder = 'Artigo (Opcional)';
+                    } else {
+                        elObs.placeholder = 'Detalhes (Obrigatório)*';
+                    }
+                }
+            }
+        }
+
+        function abrirModalAlerta(id) {
+            const elId = document.getElementById('alerta-tear-id');
+            const elLbl = document.getElementById('alerta-tear-lbl');
+            const elModal = document.getElementById('modal-alerta');
+            const selectMotivo = document.getElementById('alerta-motivo');
+            
+            const maq = db.maquinas[id];
+            const estadoAtual = maq ? (maq.status || 'PARADO') : 'PARADO';
+            const categoria = currentUserCategory;
+
+            if (categoria === 'Comercial' || categoria === 'Comerciais') {
+                return window.showToast("Acesso de leitura apenas. Apenas a produção pode enviar notificações.", "error");
+            }
+            if (estadoAtual === 'AVARIADA') {
+                return window.showToast("Esta máquina já se encontra em reparação. Não é possível enviar notificações neste estado.", "error");
+            }
+
+            if(elId) elId.value = id;
+            if(elLbl) elLbl.innerText = `TEAR ${id}`;
+
+            const listaCategoria = permissoes.categorias[categoria] || permissoes.categorias['Administrador'];
+            const listaEstado = permissoes.estados[estadoAtual] || [];
+
+            const opcoesPermitidas = listaCategoria.filter(op => listaEstado.includes(op));
+
+            if (opcoesPermitidas.length === 0) {
+                return window.showToast("Não existem ações disponíveis para a sua categoria no estado atual desta máquina.", "error");
+            }
+
+            selectMotivo.innerHTML = ''; 
+            
+            opcoesPermitidas.forEach(op => {
+                const optionElement = document.createElement('option');
+                optionElement.value = op;
+                optionElement.innerText = op;
+                selectMotivo.appendChild(optionElement);
+            });
+
+            selectMotivo.value = opcoesPermitidas[0];
+            document.getElementById('alerta-obs').value = '';
+            
+            document.getElementById('alerta-resp-display').innerText = currentUserFabrica;
+            
+            verificarObservacoes(); 
+            if(elModal) elModal.style.display = 'flex';
+        }
+
+        function fecharModalAlerta() { 
+            const elModal = document.getElementById('modal-alerta');
+            if(elModal) elModal.style.display = 'none'; 
+        }
+
+        async function enviarAlerta() {
+            const id = document.getElementById('alerta-tear-id').value;
+            const motivo = document.getElementById('alerta-motivo').value;
+            const obsInput = document.getElementById('alerta-obs');
+            const obs = obsInput ? obsInput.value.trim() : "";
+            
+            const resp = currentUserFabrica; 
+            
+            if(!resp) {
+                window.showToast("Sessão expirada. Faz login novamente!", "error");
+                fazerLogout();
+                return;
+            }
+            
+            const motivosOpcionais = ['Produção Concluída', 'Amostra Concluída', 'Autorizado para Produção', 'Pedido de Amostra', 'Manutenção Concluída'];
+            if (!motivosOpcionais.includes(motivo) && !obs) {
+                return window.showToast("Descreve os detalhes da notificação!", "error");
+            }
+
+            const confirmado = await window.confirmar(`${resp}, confirmas o envio para o Tear ${id}?`);
+            if (!confirmado) return;
+
+            const alertaData = {
+                tear: id, 
+                msg: obs ? `${motivo} - ${obs}` : motivo, 
+                responsavel: resp, 
+                hora: new Date().toLocaleString('pt-PT'), 
+                status: "pendente"
+            };
+
+            try {
+                await database.ref('dados/alertas').push(alertaData);
+                fecharModalAlerta();
+                window.showToast("Notificação enviada com sucesso!", "success");
+            } catch (e) { window.showToast("Erro ao gravar. Verifique a ligação à internet.", "error"); }
+        }
+
+        function abrirModalAlertaGeral(textoInicial = '') {
+            if(!currentUserFabrica) {
+                window.showToast("Faça login no sistema primeiro.", "error");
+                return;
+            }
+
+            document.getElementById('alerta-geral-resp-display').innerText = currentUserFabrica;
+            document.getElementById('alerta-geral-obs').value = textoInicial || '';
+            document.getElementById('modal-alerta-geral').style.display = 'flex';
+        }
+
+        function fecharModalAlertaGeral() {
+            document.getElementById('modal-alerta-geral').style.display = 'none';
+        }
+
+        async function enviarAlertaGeral() {
+            const obsInput = document.getElementById('alerta-geral-obs');
+            const obs = obsInput ? obsInput.value.trim() : "";
+            const resp = currentUserFabrica; 
+            
+            if(!resp) {
+                window.showToast("Sessão expirada. Faz login novamente!", "error");
+                fazerLogout();
+                return;
+            }
+            
+            if (!obs) {
+                return window.showToast("Por favor, descreva o motivo da Notificação Geral!", "error");
+            }
+
+            const confirmadoGeral = await window.confirmar(`${resp}, confirmas o envio da Notificação Geral?`, 'danger');
+            if (!confirmadoGeral) return;
+
+            const alertaData = {
+                tear: "GERAL", 
+                msg: obs, 
+                responsavel: resp, 
+                hora: new Date().toLocaleString('pt-PT'), 
+                status: "pendente"
+            };
+
+            try {
+                await database.ref('dados/alertas').push(alertaData);
+                fecharModalAlertaGeral();
+                window.showToast("Notificação Geral enviada para todos os ecrãs!", "success");
+            } catch (e) { window.showToast("Erro ao gravar. Verifique a ligação à internet.", "error"); }
+        }
+
+        // ════════════════════════════════════════════════════════════════════════════════════════
+        // 🔔 SISTEMA DE NOTIFICAÇÃO: Avisa o utilizador quando o seu alerta foi respondido
+        // ════════════════════════════════════════════════════════════════════════════════════════
+        
+        const alertasMonitorados = new Set(); // Rastreia os alertas que já foram respondidos
+
+        function monitorarRespostasAlertas() {
+            if (!currentUserFabrica) return;
+            
+            database.ref('dados/alertas').on('child_changed', snap => {
+                const alerta = snap.val();
+                const alertaId = snap.key;
+                
+                // Se o alerta foi respondido E foi criado por este utilizador
+                if (alerta && (alerta.status === 'aceite' || alerta.status === 'rejeitado') && 
+                    alerta.responsavel === currentUserFabrica && 
+                    !alertasMonitorados.has(alertaId)) {
+                    
+                    alertasMonitorados.add(alertaId);
+                    abrirModalRespostaUsuario(alerta, alertaId);
+                }
+            });
+        }
+
+        function abrirModalRespostaUsuario(alerta, alertaId) {
+            const modal = document.getElementById('modal-resposta-usuario');
+            const isAceite = alerta.status === 'aceite';
+            
+            // ═══ Atualizar cabeçalho ═══
+            const headerClass = isAceite ? 'border-success' : 'border-danger';
+            const header = document.getElementById('resposta-header-container');
+            header.className = `modal-header ${headerClass}`;
+            
+            // ═══ Ícone e status ═══
+            const iconContainer = document.getElementById('resposta-icon-container');
+            iconContainer.innerHTML = isAceite ? 
+                '<i class="fa-solid fa-circle-check" style="color: #70AD47;"></i>' : 
+                '<i class="fa-solid fa-circle-xmark" style="color: #ff4757;"></i>';
+            
+            const statusEl = document.getElementById('resposta-status');
+            statusEl.textContent = isAceite ? 'ACEITE' : 'REJEITADO';
+            statusEl.style.color = isAceite ? '#70AD47' : '#ff4757';
+            
+            // ═══ Tear ═══
+            const tearNum = alerta.tear || 'GERAL';
+            document.getElementById('resposta-tear-numero').textContent = tearNum;
+            
+            // ═══ Mensagem original ═══
+            document.getElementById('resposta-alerta-msg').textContent = alerta.msg || '(sem descrição)';
+            
+            // ═══ Resposta/Justificação ═══
+            const detalhesContainer = document.getElementById('resposta-detalhes-container');
+            const detalhesTexto = document.getElementById('resposta-detalhes-texto');
+            
+            if (alerta.justificacao) {
+                detalhesContainer.style.display = 'block';
+                detalhesTexto.textContent = alerta.justificacao;
+                detalhesTexto.style.color = isAceite ? '#70AD47' : '#ff6b6b';
+                const detalhesLabel = detalhesContainer.querySelector('div:first-child');
+                if (detalhesLabel) {
+                    detalhesLabel.textContent = isAceite ? 'Resposta do Administrador:' : 'Motivo da Rejeição:';
+                }
+            } else {
+                detalhesContainer.style.display = 'none';
+            }
+            
+            // ═══ Responsor e hora ═══
+            document.getElementById('resposta-por').textContent = alerta.fechadoPor || 'Administrador';
+            document.getElementById('resposta-hora').textContent = alerta.resolvidoEm || '(sem data)';
+            
+            // ═══ Abrir modal ═══
+            modal.style.display = 'flex';
+
+            // ═══ Som de notificação ═══
+            tocaSomNotificacao();
+        }
+
+        function fecharModalRespostaUsuario() {
+            const modal = document.getElementById('modal-resposta-usuario');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function tocaSomNotificacao() {
+            try {
+                const audioPath = 'src/assets/audio/alerta.mp3';
+                const audio = new Audio(audioPath);
+                audio.volume = 0.6;
+                audio.play().catch(err => console.warn('Audio autoplay bloqueado ou ficheiro não encontrado:', err));
+            } catch (e) {
+                console.warn('Erro ao tocar som de notificação:', e);
+            }
+        }
+    </script>
+</body>
+</html>
+

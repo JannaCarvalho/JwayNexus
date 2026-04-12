@@ -1,0 +1,2348 @@
+﻿<!DOCTYPE html>
+<html lang="pt-pt">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark light">
+    <meta name="supported-color-schemes" content="dark light">
+    <meta name="theme-color" content="#050d1a">
+    <title>Jway - Gestão de Encomendas</title>
+    
+    <script>
+        // Segurança de navegação: Descomentar em produção
+        // if (!document.referrer.includes('gestao.html')) { window.location.href = '404.html'; }
+    </script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="src/js/firebase-config.js"></script>
+    <script src="src/js/session-utils.js"></script>
+    <script src="src/js/navigation-menu.js?v=1"></script>
+    <script src="src/js/imprimir-mapa-encomendas.js?v=2"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="icon" href="src/assets/images/jway48x48.ico">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="src/css/estilos-globais.css?v=41">
+    <style>
+        :root { --bg-body: #050d1a; --jway-blue: #00a8ff; --color-ok: #70AD47; --color-warn: #FFC000; --color-danger: #ff4757; --color-clone: #f39c12; --color-envio: #9b59b6; --desktop-font-scale: 1; }
+        body { background: var(--bg-body); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; font-size: calc(16px * var(--desktop-font-scale)); }
+        .header { margin-bottom: 18px; }
+        .header-title { margin: 0; }
+        .mapa-actions {
+            margin-bottom: 20px;
+        }
+
+        /* Desktop em ecrã "cortado": ajusta tipografia para manter legibilidade e caber melhor */
+        @media (min-width: 769px) and (max-width: 1600px) {
+            :root { --desktop-font-scale: clamp(0.84, 0.72 + 0.5vw, 0.96); }
+            table { min-width: 1600px; font-size: clamp(0.72rem, 0.66rem + 0.2vw, 0.82rem); }
+            th { padding: 11px 10px; font-size: clamp(0.62rem, 0.58rem + 0.12vw, 0.68rem); }
+            td { padding: 9px 8px; }
+        }
+
+        body.role-visualizador .form-container,
+        body.role-visualizador .btn-admin-only,
+        body.role-visualizador .th-acoes,
+        body.role-visualizador td.action-btns {
+            display: none !important;
+        }
+
+        body.role-fabrica .sensitive-finance,
+        body.role-fabrica .sensitive-client-code,
+        body.role-fabrica #dashboards-wrapper {
+            display: none !important;
+        }
+        
+        .btn-print-map {
+            background: rgba(112, 173, 71, 0.15);
+            color: var(--color-ok);
+            border: 1px solid rgba(112, 173, 71, 0.5);
+        }
+        .btn-print-map:hover {
+            background: var(--color-ok);
+            color: #ffffff;
+            border-color: var(--color-ok);
+        }
+        .btn-back { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.2); }
+        .btn-back:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* FORMULÁRIO DE ENTRADA */
+        .form-container { background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 12px; margin-bottom: 30px; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .field-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.7rem; font-weight: 800; color: #aaa; text-transform: uppercase; }
+        input, select { padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; outline: none; font-weight: 600; transition: 0.2s; width: 100%; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--jway-blue); }
+        input:disabled { opacity: 0.4; cursor: not-allowed; background: rgba(255,255,255,0.02); }
+        .action-container { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .btn-submit { flex: 1; padding: 15px; background: var(--jway-blue); color: white; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; transition: 0.2s; min-width: 250px; }
+        .btn-submit:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); }
+        .btn-cancel { display: none; flex: 0 0 150px; padding: 15px; background: rgba(255,255,255,0.1); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-align: center; transition: 0.2s; }
+        .btn-cancel:hover { background: rgba(255,255,255,0.2); }
+        
+        /* QOL: FORÇAR MAIÚSCULAS VISUALMENTE */
+        .text-upper { text-transform: uppercase; }
+
+        /* BARRA DE FILTROS */
+        .filters-bar { display: flex; gap: 20px; margin-bottom: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); align-items: flex-end; flex-wrap: wrap; }
+        .filtro-ativo-badge { background: var(--jway-blue); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; display: none; }
+        
+        .btn-limpar-filtros { 
+            background: rgba(255,71,87,0.1); 
+            color: var(--color-danger); 
+            border: 1px solid var(--color-danger); 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 0.7rem; 
+            transition: 0.2s; 
+            margin-left: 10px; 
+            height: 35px;
+            white-space: nowrap; /* Impede a quebra de texto em ecrãs intermédios */
+        }
+        .btn-limpar-filtros:hover { background: var(--color-danger); color: white; }
+        
+        .btn-filtro-estados { background: rgba(0, 168, 255, 0.1); border: 1px solid var(--jway-blue); color: var(--jway-blue); padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; height: 38px; display: flex; align-items: center;}
+        .btn-filtro-estados:hover { background: var(--jway-blue); color: white; }
+        #filtro_pesquisa { padding-left: 46px; padding-right: 48px; }
+        #filtro_pesquisa::-webkit-search-cancel-button,
+        #filtro_pesquisa::-webkit-search-decoration,
+        #filtro_pesquisa::-webkit-search-results-button,
+        #filtro_pesquisa::-webkit-search-results-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+            display: none;
+        }
+        #btn-clear-filters-map {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            margin: 0;
+            padding: 0;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 71, 87, 0.35);
+            background: rgba(255, 71, 87, 0.14);
+            color: #ff6a79;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 2;
+        }
+        #btn-clear-filters-map i {
+            display: block;
+            line-height: 1;
+            font-size: 14px;
+        }
+        #btn-clear-filters-map:hover {
+            background: rgba(255, 71, 87, 0.32);
+            color: #fff;
+        }
+
+        /* TABELA DE ENCOMENDAS */
+        .table-wrapper { 
+            overflow-x: auto; 
+            background: rgba(0,0,0,0.2); 
+            border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.05); 
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+        }
+        .table-scroll-top {
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 14px;
+            margin-bottom: 0;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px 8px 0 0;
+            display: none;
+            scrollbar-color: rgba(0,168,255,0.7) rgba(255,255,255,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 25;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .table-scroll-top-inner { height: 1px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 1900px; }
+        th { 
+            background: rgba(5, 13, 26, 0.85); 
+            color: var(--jway-blue); 
+            text-align: left; 
+            padding: 15px; 
+            text-transform: uppercase; 
+            font-size: 0.7rem; 
+            letter-spacing: 1px; 
+            position: relative; 
+            z-index: 10;
+            backdrop-filter: blur(10px); 
+            -webkit-backdrop-filter: blur(10px); 
+            box-shadow: inset 0 -2px 0 rgba(0, 168, 255, 0.3); 
+            will-change: transform; 
+        }
+        td { padding: 12px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); vertical-align: middle; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .badge { border-radius: 6px; font-weight: 800; font-size: 0.65rem; text-transform: uppercase; display: inline-block; text-align: center; }
+        select.badge { border: 1px solid rgba(255,255,255,0.2); cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='currentColor'%3E%3Cpath d='M2 3l3 3 3-3z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; padding: 4px 18px 4px 6px; font-size: 0.62rem; min-width: 95px; max-width: 110px; }
+        select.badge:hover { filter: brightness(1.2); }
+        select.badge option { background-color: #0f1b2b; color: white; text-align: left; }
+        span.badge { padding: 6px 10px; }
+
+        /* ESTADO VAZIO E CORES DE ESTADOS */
+        .st-vazio { background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.3); color: transparent; height: 26px;}
+        .st-novo { background: rgba(0, 168, 255, 0.15); border: 1px solid rgba(0, 168, 255, 0.3); color: var(--jway-blue); }
+        .st-continuidade { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #ccc; }
+        .st-color-default { background: #44546A; color: white; }
+
+        .texto-vazio { opacity: 0.3; font-style: italic; font-weight: bold; }
+        .texto-desc { min-width: 250px; display: block; word-break: break-word; line-height: 1.4; }
+        .montante-val { font-weight: 900; color: var(--color-ok); }
+        .col-data { white-space: nowrap; min-width: 95px; }
+
+        .inline-date { background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.3); padding: 2px 4px; font-size: 0.7rem; color: white; border-radius: 4px; cursor: pointer; max-width: 105px; transition: 0.3s; }
+
+        .date-overdue { color: #ff4757 !important; border-color: #ff4757 !important; text-shadow: 0 0 10px rgba(255, 71, 87, 0.8), 0 0 20px rgba(255, 71, 87, 0.4); box-shadow: inset 0 0 10px rgba(255, 71, 87, 0.2); font-weight: 900; }
+        .date-warning { color: #FFC000 !important; border-color: #FFC000 !important; text-shadow: 0 0 10px rgba(255, 192, 0, 0.8), 0 0 20px rgba(255, 192, 0, 0.4); box-shadow: inset 0 0 10px rgba(255, 192, 0, 0.2); font-weight: 900; }
+
+        .tooltip-container { position: relative; cursor: help; }
+        .quant-underline { border-bottom: 1px dashed rgba(255,255,255,0.5); padding-bottom: 2px; display: inline-block; font-weight: bold; color: var(--color-envio); width: 100%;}
+        .date-underline { border-bottom: 1px dashed rgba(255,255,255,0.5); padding-bottom: 2px; display: inline-block; font-weight: bold; color: white; }
+        .progress-bar-bg { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: var(--color-envio); transition: width 0.5s ease; }
+
+        .custom-tooltip { visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(10px); background: #0f1b2b; border: 1px solid var(--jway-blue); padding: 8px 12px; border-radius: 8px; z-index: 100; white-space: nowrap; transition: all 0.3s ease; font-size: 0.75rem; font-weight: bold; text-align: center; pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .tooltip-container:hover .custom-tooltip { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(-5px); }
+        .custom-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: var(--jway-blue) transparent transparent transparent; }
+
+        .action-btns { display: flex; gap: 2px; align-items: center; white-space: nowrap; } 
+        .btn-action { background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.5; transition: 0.2s; padding: 2px; }
+        .btn-action.edit { color: var(--jway-blue); }
+        .btn-action.clone { color: var(--color-clone); }
+        .btn-action.ship { color: var(--color-envio); opacity: 0.8; }
+        .btn-action.delete { color: #ff4757; }
+        .btn-action:hover { opacity: 1; transform: scale(1.2); }
+
+        .glow-btn-ship { animation: pulse-ship 1.5s infinite; border-radius: 50%; background: rgba(155, 89, 182, 0.2); color: #fff !important; opacity: 1 !important; }
+        @keyframes pulse-ship { 0% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.7); } 70% { box-shadow: 0 0 10px 10px rgba(155, 89, 182, 0); } 100% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0); } }
+
+        .glow-estado-atrasado {
+            animation: pulse-estado-atrasado 1.6s infinite;
+            box-shadow: 0 0 0 0 rgba(255, 192, 0, 0.75);
+            border-color: rgba(255, 192, 0, 0.9) !important;
+        }
+        @keyframes pulse-estado-atrasado {
+            0% { box-shadow: 0 0 0 0 rgba(255, 192, 0, 0.75); }
+            70% { box-shadow: 0 0 12px 10px rgba(255, 192, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 192, 0, 0); }
+        }
+
+        /* GRELHA DASHBOARDS */
+        .dashboards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px auto 20px auto; max-width: 1400px; }
+        @media (max-width: 1000px) { .dashboards-grid { grid-template-columns: 1fr; max-width: 100%; } }
+        
+        .summary-dashboard { background: rgba(10, 25, 47, 0.6); padding: 20px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 15px; }
+        .summary-dashboard h3 { margin: 0; color: var(--jway-blue); font-size: 1rem; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        @media (max-width: 1300px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 700px) { .summary-cards { grid-template-columns: 1fr; } }
+        
+        .month-card { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; transition: 0.2s; }
+        .clickable-card { cursor: pointer; }
+        .clickable-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }
+        .active-card { border-color: var(--jway-blue) !important; background: rgba(0, 168, 255, 0.1) !important; box-shadow: 0 0 15px rgba(0, 168, 255, 0.3) !important; transform: scale(1.02); }
+
+        .month-card-title { font-size: 0.8rem; font-weight: 900; color: #aaa; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .month-val-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; font-weight: bold; }
+        .val-esperado { color: var(--jway-blue); }
+        .val-real { color: var(--color-ok); }
+        .total-row { border-top: 1px dashed rgba(255,255,255,0.2); padding-top: 8px; margin-top: 8px; font-size: 1rem; }
+        .select-ano { background: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 6px; outline: none; font-weight: bold; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='white'%3E%3Cpath d='M2 3l3 3 3-3z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; font-size: 0.8rem; width: 90px; }
+        
+        .btn-faturas { background: rgba(243, 156, 18, 0.1); border: 1px solid var(--color-clone); color: var(--color-clone); padding: 12px 30px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-faturas:hover { background: var(--color-clone); color: white; box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3); transform: translateY(-2px); }
+        
+        .site-footer { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 25px 20px; font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); text-align: center;}
+        .footer-logo { height: 25px; opacity: 0.5; filter: grayscale(100%); transition: 0.3s; }
+        .footer-logo:hover { opacity: 1; filter: grayscale(0%); }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-body);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--jway-blue);
+            font-weight: bold;
+            opacity: 1;
+            transition: opacity 0.22s ease;
+            pointer-events: auto;
+        }
+        #loader.hidden { opacity: 0; pointer-events: none; }
+
+        /* MODAIS GERAIS E ESTILOS DOS FILTROS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: #0f1b2b; padding: 25px; border-radius: 12px; width: 90%; max-width: 600px; border: 1px solid var(--jway-blue); max-height: 85vh; overflow-y: auto; }
+        
+        .modal-state-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 6px;
+            transition: 0.2s;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: white;
+            text-align: left;
+            user-select: none;
+        }
+        .modal-state-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--jway-blue);
+        }
+        .modal-state-item .state-check {
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: transparent;
+            background: rgba(0,0,0,0.25);
+        }
+        .modal-state-item.is-selected {
+            border-color: rgba(0, 168, 255, 0.75);
+            background: rgba(0, 168, 255, 0.12);
+        }
+        .modal-state-item.is-selected .state-check {
+            color: white;
+            border-color: rgba(0, 168, 255, 0.95);
+            background: rgba(0, 168, 255, 0.6);
+        }
+
+        #modal-faturas .modal-content { width: 95vw; max-width: 1600px; height: 95vh; max-height: 95vh; display: flex; flex-direction: column; }
+        #modal-faturas .envio-history { flex: 1; overflow-y: auto; padding-right: 10px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;}
+        .modal-header h2 { margin: 0; color: white; font-size: 1.2rem; }
+        .shipment-stats { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.2); }
+        .ship-stat { flex: 1; text-align: center; }
+        .ship-stat span { display: block; font-size: 0.65rem; text-transform: uppercase; color: #888; font-weight: bold; }
+        .ship-stat strong { font-size: 1.4rem; color: white; }
+        .ship-stat strong.text-ok { color: var(--color-ok); }
+        .envio-history { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
+        .envio-row { display: flex; justify-content: space-between; padding: 12px; background: rgba(255,255,255,0.05); margin-bottom: 5px; border-radius: 6px; font-size: 0.85rem; align-items: center; border-left: 3px solid transparent; transition: 0.2s;}
+        .envio-row:hover { border-left: 3px solid var(--jway-blue); background: rgba(255,255,255,0.08); }
+        
+        .btn-mini-del { background: none; border: none; color: var(--color-danger); cursor: pointer; font-weight: bold; font-size: 1.1rem; }
+        .btn-mini-edit { background: none; border: none; color: var(--jway-blue); cursor: pointer; font-weight: bold; font-size: 1.1rem; }
+        
+        .of-checkbox-label { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 20px; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .of-checkbox-label:hover { background: rgba(255,255,255,0.1); }
+        .of-checkbox-label input { width: auto; margin: 0; }
+
+        /* SISTEMA DE TOASTS */
+        .toast { min-width: 250px; padding: 15px 20px; border-radius: 8px; color: white; font-weight: bold; font-size: 0.85rem; box-shadow: 0 4px 15px rgba(0,0,0,0.6); animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards; display: flex; align-items: center; gap: 10px; }
+        .toast.success { background: rgba(112, 173, 71, 0.95); border: 1px solid var(--color-ok); }
+        .toast.error { background: rgba(255, 71, 87, 0.95); border: 1px solid var(--color-danger); }
+        .toast.info { background: rgba(0, 168, 255, 0.95); border: 1px solid var(--jway-blue); }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(120%); display: none; } }
+
+        /* QOL: BOTÃO VOLTAR AO TOPO */
+        .btn-back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--jway-blue);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 168, 255, 0.4);
+            border: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .btn-back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .btn-back-to-top:hover {
+            transform: translateY(-5px);
+            background: #007bb5;
+        }
+
+        /* QOL: SEARCH INPUT ESTILO */
+        input[type="search"]::-webkit-search-cancel-button {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>') no-repeat center center;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        input[type="search"]::-webkit-search-cancel-button:hover { opacity: 1; }
+        
+        /* IMPRESSÃO Ocultar extras e gráficos */
+        @media print {
+            .search-container, .header .btn-modern, #modal-filtros, #loader, .custom-tooltip, #grafico-wrapper, .site-footer, .user-info-print, .btn-back-to-top { display: none !important; }
+        }
+
+        /* =======================================================
+           MOBILE & SMARTPHONE: GESTÃO DE ENCOMENDAS
+           ======================================================= */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            
+            /* 1. Cabeçalho Centralizado */
+            .header { flex-direction: column; text-align: center; gap: 10px; padding-bottom: 10px;}
+            .header > div { flex-direction: column; width: 100%; justify-content: center; gap: 10px; }
+            
+            /* 2. Formulário e Botões */
+            .grid-inputs { grid-template-columns: 1fr; gap: 10px; }
+            .grid-inputs .field-group { grid-column: span 1 !important; } 
+            
+            .action-container { flex-direction: column; gap: 10px; margin-top: 15px; }
+            .btn-submit { width: 100%; min-width: 0; padding: 15px; font-size: 0.95rem; }
+            .btn-cancel { width: 100%; flex: none; }
+            
+            .btn-modern, .btn-faturas { width: 100%; box-sizing: border-box; justify-content: center; display: flex; align-items: center;}
+            
+            /* 3. Filtros ajustados */
+            .filters-bar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+            .filters-bar > div { width: 100%; flex-direction: column; gap: 10px; align-items: stretch !important; justify-content: center !important;}
+            .filters-bar > div > div { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+            .btn-limpar-filtros { margin-left: 0; width: 100%; justify-content: center; display: flex; align-items: center;}
+            .btn-filtro-estados { width: 100%; justify-content: center; }
+
+            /* 4. Tabela Original c/ Scroll Horizontal (Swipe) */
+            .table-wrapper { border-radius: 8px; margin-bottom: 15px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table { min-width: 1400px; }
+
+            /* 5. Dashboards / Gráficos empilhados */
+            .dashboards-grid { display: flex; flex-direction: column; gap: 20px;}
+            .summary-cards { grid-template-columns: 1fr; }
+            
+            /* AJUSTE NO TÍTULO DA DASHBOARD PARA CABER NO MOBILE */
+            .summary-dashboard > div[style*="display: flex"] { flex-wrap: wrap; justify-content: center !important; }
+            .summary-dashboard h3 { white-space: normal !important; font-size: 0.95rem !important; text-align: center; width: 100%; justify-content: center; }
+
+            /* 6. Ajuste nos Modais (Pop-ups) */
+            .modal-content { width: 95%; padding: 15px; max-height: 90vh;}
+            #modal-faturas .modal-content { height: 90vh; }
+            .grid-inputs[style*="grid-template-columns: 1fr 2fr"] { grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <img src="src/assets/images/jwayseamlessflow.png" alt="Logo" style="height: 150px; margin-bottom: 20px; opacity: 0.75;">
+        A Carregar Encomendas...
+    </div>
+
+    <div class="header">
+        <div class="header-brand">
+            <img src="src/assets/images/jwayseamlessflow.png" alt="Jway Logo" class="header-logo">
+            <h1 class="header-title">Mapa de Encomendas</h1>
+        </div>
+
+        <div class="user-nav-panel">
+            <div id="live-clock" class="live-clock">A carregar hora...</div>
+            <div class="user-badge-box">
+                <div id="topbar-avatar-encomendas" class="topbar-user-avatar"><i class="fa-solid fa-user" style="font-size:0.8rem; opacity:0.5;"></i></div>
+                <div class="user-info-text">
+                    <span id="logged-user-name" style="font-size: 0.85rem; font-weight: 800; color: white;"></span>
+                    <span id="logged-user-category" style="font-size: 0.65rem; font-weight: 900; text-transform: uppercase;"></span>
+                </div>
+                <button class="btn-primary btn-logout-standard" onclick="fazerLogout()">Sair <i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-bar mapa-actions">
+            <div class="menu-dropdown-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-left: auto;">
+                <button class="btn-modern btn-topbar btn-print-map" onclick="window.abrirImpressaoMapa()"><i class="fa-solid fa-print"></i> Imprimir Mapa</button>
+                <button class="btn-modern btn-topbar btn-admin-only" onclick="window.abrirDefinicoes()"><i class="fa-solid fa-gear"></i> Definições</button>
+                <button id="btn-navegacao" class="btn-modern btn-topbar btn-topbar-icon" onclick="toggleMenuNav(event)">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <div id="menu-nav-dropdown" class="menu-dropdown"></div>
+            </div>
+    </div>
+
+    <div class="form-container">
+        <input type="hidden" id="edit_id" value=""> 
+        
+        <div class="grid-inputs">
+            <div class="field-group"><label>Cliente <span style="color:var(--color-danger);">*</span></label><input type="text" id="cliente" placeholder="Nome do Cliente"></div>
+            <div class="field-group"><label>PO# (Encomenda)</label><input type="text" id="po" class="text" placeholder="Ex: PO# 2026 (Opcional)"></div>
+            <div class="field-group"><label>OF (Ordem Fabrico) <span style="color:var(--color-danger);">*</span></label><input type="text" id="of" class="text-upper" placeholder="Ex: 01.26"></div>
+            <div class="field-group">
+                <label>Tipo Produção</label>
+                <select id="tipo_producao"><option value="Artigo Novo">Artigo Novo</option><option value="Continuidade">Continuidade</option></select>
+            </div>
+            <div class="field-group"><label>Referência <span style="color:var(--color-danger);">*</span></label><input type="text" id="ref" class="text" placeholder="Ref. Interna" onblur="window.procurarMemoriaArtigo()"></div>
+            <div class="field-group" style="grid-column: span 2;"><label>Descrição <span style="color:var(--color-danger);">*</span></label><input type="text" id="desc" placeholder="Descritivo do artigo..."></div>
+            <div class="field-group sensitive-client-code"><label>Cod. Cliente</label><input type="text" id="cod_cli" class="text" placeholder="(Opcional)"></div>
+            <div class="field-group"><label>Cor <span style="color:var(--color-danger);">*</span></label><input type="text" id="cor" placeholder="Cor do Artigo"></div>
+            <div class="field-group"><label>Quant. Total <span style="color:var(--color-danger);">*</span></label><input type="number" id="quant" value="0" oninput="window.calcularMontante()"></div>
+            <div class="field-group sensitive-finance"><label>Preço Unit. <span style="color:var(--color-danger);">*</span></label><input type="number" id="preco" step="0.01" value="0.00" oninput="window.calcularMontante()"></div>
+            <div class="field-group sensitive-finance"><label>Montante Previsto</label><input type="text" id="montante_total" value="0,00 €" disabled style="color: var(--color-ok); background: rgba(112, 173, 71, 0.1);"></div>
+            <div class="field-group"><label>Tinturaria</label><select id="tinturaria"></select></div>
+            <div class="field-group"><label>Entrega <span style="color:var(--color-danger);">*</span></label><input type="date" id="data_entrega"></div>
+            
+            <div class="action-container">
+                <button class="btn-submit" id="btn-submit" onclick="window.salvarEncomenda()"><i class="fa-solid fa-inbox"></i> REGISTAR NOVA ENCOMENDA NO MAPA</button>
+                <button class="btn-submit" id="btn-clone" style="display: none; background: var(--color-clone);" onclick="window.salvarComoClone()"><i class="fa-solid fa-copy"></i> REGISTAR COMO NOVA (CLONAR)</button>
+                <button class="btn-cancel" id="btn-cancel" onclick="window.cancelarEdicao()"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-bar" style="margin-bottom: 15px;">
+        <div style="display: flex; flex-grow: 1; align-items: center; max-width: 600px;">
+            <div class="search-bar-container" style="width: 100%;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search" id="filtro_pesquisa" class="search-input" placeholder="Pesquisar por Cliente, OF, PO ou Ref..." oninput="window.guardarFiltroPesquisa(); window.renderizarTabela()">
+                <button id="btn-clear-filters-map" type="button" title="Limpar pesquisa e filtros" aria-label="Limpar pesquisa e filtros" onclick="window.limparFiltrosGerais()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <div class="menu-dropdown-container" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="btn-modern btn-filtro-estados" onclick="window.abrirModalFiltros()"><i class="fa-solid fa-filter"></i> Filtrar Estados (<span id="count-filtros">Todos</span>)</button>
+            <span id="badge-filtro-dash" class="filtro-ativo-badge">Filtro Dashboard Ativo</span>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <div id="table-scroll-top" class="table-scroll-top" aria-label="Scroll horizontal da tabela">
+            <div id="table-scroll-top-inner" class="table-scroll-top-inner"></div>
+        </div>
+        <table id="tabela-encomendas">
+            <thead>
+                <tr>
+                    <th>Cliente</th><th>PO#</th><th>OF</th><th>Tipo</th><th>Ref.</th><th>Descrição</th>
+                    <th class="sensitive-client-code">Cod. Cli</th><th>Cor</th><th>Quant.</th><th class="sensitive-finance">Preço</th><th class="sensitive-finance">Montante</th>
+                    <th>Estado</th><th>Tinturaria</th><th class="col-data">Entrega</th><th>Aprovação</th><th class="th-acoes">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="lista-corpo"></tbody>
+        </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 25px; margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+        <button class="btn-faturas btn-export-ok" onclick="window.exportarExcel()"><i class="fa-solid fa-chart-column"></i> Exportar Tabela (Excel)</button>
+        <button class="btn-faturas btn-admin-only" onclick="window.abrirModalFaturas()"><i class="fa-solid fa-file-invoice-dollar"></i> Gerir Faturas Adicionais</button>
+    </div>
+
+    <div id="dashboards-wrapper">
+        <div class="dashboards-grid">
+            <div class="summary-dashboard">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h3 style="margin: 0;"><i class="fa-solid fa-calendar-days"></i> Faturação por Mês de Entrega</h3>
+                    <select id="filtro_ano" class="select-ano" onchange="window.guardarFiltroAno(); window.renderizarResumos()"></select>
+                </div>
+                <div class="summary-cards" id="resumo-mensal-container"></div>
+            </div>
+            <div class="summary-dashboard">
+                <h3><i class="fa-solid fa-building"></i> Faturação por Cliente</h3>
+                <div class="summary-cards" id="resumo-cliente-container"></div>
+            </div>
+        </div>
+        
+        <div id="grafico-wrapper" class="dashboards-grid" style="grid-template-columns: 2fr 1fr;">
+            <div class="summary-dashboard">
+                <h3><i class="fa-solid fa-chart-line"></i> Gráfico Anual de Faturação</h3>
+                <div style="height: 350px; width: 100%;">
+                    <canvas id="graficoFaturacao"></canvas>
+                </div>
+            </div>
+            
+            <div class="summary-dashboard">
+                <h3><i class="fa-solid fa-chart-pie"></i> Distribuição por Cliente</h3>
+                <div style="height: 350px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                    <canvas id="graficoClientes"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="site-footer" style="margin-top: 40px;">
+        <div>&copy; 2026 Jway Nexus | Desenvolvido por João Carvalho | Todos os direitos reservados | Mapa de Encomendas</div>
+        <img src="src/assets/images/Alecgroup.png" alt="Alecgroup Logo" class="footer-logo">
+    </div>
+
+    <div class="modal-overlay" id="modal-filtros">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header"><h2><i class="fa-solid fa-filter"></i> Filtrar por Estado</h2><button class="modal-close" onclick="window.fecharModalFiltros()"><i class="fa-solid fa-xmark"></i></button></div>
+            <div style="margin-bottom: 15px; display:flex; gap:10px;">
+                <button class="btn-modern" style="flex:1;" onclick="window.toggleTodosFiltros(true)">Marcar Todos</button>
+                <button class="btn-modern" style="flex:1;" onclick="window.toggleTodosFiltros(false)">Desmarcar Todos</button>
+            </div>
+            <div id="modal-filtros-lista" style="display:flex; flex-direction:column; gap:8px; max-height: 40vh; overflow-y: auto; padding: 10px; border-radius: 8px;">
+                </div>
+            <button class="btn-submit" style="width: 100%; margin-top: 15px;" onclick="window.aplicarFiltrosEstados()">Aplicar Filtros e Fechar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-envios">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header"><h2><i class="fa-solid fa-box-open"></i> Registar Envio (Expedição)</h2><button class="modal-close" onclick="window.fecharEnvios()"><i class="fa-solid fa-xmark"></i></button></div>
+            <input type="hidden" id="envio_enc_id">
+            <div id="envio-enc-info" style="color: var(--jway-blue); font-weight: bold; margin-bottom: 15px; font-size: 0.9rem;"></div>
+            <div class="shipment-stats">
+                <div class="ship-stat"><span>Pedido Total</span><strong id="stat-total">0</strong></div>
+                <div class="ship-stat"><span>Já Enviado</span><strong id="stat-enviado" class="text-ok">0</strong></div>
+                <div class="ship-stat"><span>Restante</span><strong id="stat-restante" style="color: var(--color-warn);">0</strong></div>
+            </div>
+            <div class="grid-inputs" style="grid-template-columns: 1fr 1fr; margin-bottom: 15px;">
+                <div class="field-group"><label>Data do Envio</label><input type="date" id="envio_data"></div>
+                <div class="field-group"><label>Quantidade a Enviar</label><input type="number" id="envio_quant" min="1"></div>
+            </div>
+            <button class="btn-submit" style="width: 100%; background: var(--color-envio);" onclick="window.registarEnvio()">Confirmar Envio</button>
+            <div class="envio-history"><h3 style="margin:0 0 10px 0; font-size: 0.8rem; color: #aaa;">Histórico de Envios desta OF</h3><div id="lista-historico-envios"></div></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-faturas">
+        <div class="modal-content">
+            <div class="modal-header"><h2 id="titulo-modal-faturas"><i class="fa-solid fa-file-invoice-dollar"></i> Gestão de Faturas Adicionais</h2><button class="modal-close" onclick="window.fecharModalFaturas()"><i class="fa-solid fa-xmark"></i></button></div>
+            
+            <input type="hidden" id="fat_edit_id" value="">
+
+            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                <div class="grid-inputs" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 15px; align-items: end;">
+                    <div class="field-group">
+                        <label>Tipo de Documento</label>
+                        <select id="fat_tipo" onchange="window.mudarTipoFatura()"><option value="Fatura">Fatura</option><option value="Adiantamento">Adiantamento</option><option value="Nota de Crédito">Nota de Crédito</option></select>
+                    </div>
+                    <div class="field-group"><label>Nº do Documento</label><input type="text" id="fat_numero" placeholder="Ex: FT-26/001"></div>
+                    <div class="field-group"><label>Data</label><input type="date" id="fat_data"></div>
+                    <div class="field-group" style="flex: 2; min-width: 200px;"><label>Descrição</label><input type="text" id="fat_desc" placeholder="Ex: Transporte, Taxa Extra, Sinal..."></div>
+                    <div class="field-group"><label>Valor (€)</label><input type="number" id="fat_valor" step="0.01" min="0"></div>
+                </div>
+                <div id="container_adiantamento" style="display: none; margin-bottom: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1);">
+                    <div class="grid-inputs" style="grid-template-columns: 1fr 2fr;">
+                        <div class="field-group"><label>Filtrar por Cliente</label><input type="text" id="fat_cliente" list="dl_clientes" placeholder="Nome do Cliente..." oninput="window.carregarOFsCliente()"><datalist id="dl_clientes"></datalist></div>
+                        <div class="field-group"><label>Ordens de Fabrico Referentes</label><div id="box_ofs" style="max-height: 100px; overflow-y: auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 10px;"><span style="color:#888;">Insira o nome do cliente.</span></div></div>
+                    </div>
+                </div>
+                <div style="text-align: right; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button class="btn-cancel" id="btn-cancel-fat" onclick="window.limparFormularioFaturas()" style="display:none; padding: 10px 20px;"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+                    <button class="btn-submit" id="btn-submit-fat" style="width: auto; padding: 10px 30px; background: var(--color-clone); font-size: 0.9rem;" onclick="window.adicionarFatura()">Adicionar</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <input type="search" id="filtro_faturas" placeholder="Pesquisar faturas por Nº Documento, Cliente ou Descrição..." oninput="window.renderListaFaturas()" style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; color: white;">
+            </div>
+
+            <div class="envio-history"><h3 style="margin:0 0 10px 0; font-size: 0.9rem; color: var(--jway-blue);">Histórico de Faturas / Adiantamentos Registados</h3><div id="lista-faturas-adicionais"></div></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modal-definicoes">
+        <div class="modal-content">
+            <div class="modal-header"><h2><i class="fa-solid fa-gear"></i> Definições do Sistema</h2><button class="modal-close" onclick="window.fecharDefinicoes()"><i class="fa-solid fa-xmark"></i></button></div>
+            
+            <div class="config-section" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+                <h3 style="margin: 0 0 10px 0; color: var(--jway-blue); font-size: 0.9rem;"><i class="fa-solid fa-stopwatch"></i> Tempos de Produção (Lead-Time em Semanas)</h3>
+                <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                    <div class="field-group"><label>Artigo Novo</label><input type="number" id="cfg-lt-novo" min="1" style="width: 120px;"></div>
+                    <div class="field-group"><label>Continuidade</label><input type="number" id="cfg-lt-cont" min="1" style="width: 120px;"></div>
+                </div>
+                <button class="btn-modern" onclick="window.guardarLeadTimes()">Guardar Lead-Times</button>
+            </div>
+
+            <div class="config-section" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+                <h3 style="margin: 0 0 10px 0; color: var(--jway-blue); font-size: 0.9rem;"><i class="fa-solid fa-list-check"></i> Fases / Estados da Encomenda</h3>
+                <div id="lista-cfg-estados" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;"></div>
+                <div style="display: flex; gap: 8px;"><input type="text" id="novo-estado" placeholder="Novo Estado..." style="flex:1"><button class="btn-modern" onclick="window.adicionarEstado()">+</button></div>
+            </div>
+            
+            <div class="config-section" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05);">
+                <h3 style="margin: 0 0 10px 0; color: var(--jway-blue); font-size: 0.9rem;"><i class="fa-solid fa-palette"></i> Tinturarias / Parceiros</h3>
+                <div id="lista-cfg-tinturarias" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;"></div>
+                <div style="display: flex; gap: 8px;"><input type="text" id="nova-tinturaria" placeholder="Nova Tinturaria..." style="flex:1"><button class="btn-modern" onclick="window.adicionarTinturaria()">+</button></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn-back-to-top" id="btnBackTop" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })" title="Voltar ao Topo">↑</button>
+
+    <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;"></div>
+
+    <script>
+        const sess = window.JwaySession.get();
+        const userName = sess.nome;
+        const userCatRaw = sess.categoria || 'Operador (Maquinista)';
+        if (!userName) {
+            window.location.replace('index.html');
+        }
+
+        function normalizarTextoCategoria(cat) {
+            return String(cat || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+        }
+
+        function canonicalizarCategoria(cat) {
+            const n = normalizarTextoCategoria(cat);
+            if (n.includes('admin')) return 'Administrador';
+            if (n.includes('gestao')) return 'Administrador';
+            if (n.includes('comercial')) return 'Comercial';
+            if (n.includes('tecnico') && n.includes('desenho')) return 'Técnico de Desenho';
+            if (n.includes('assistente')) return 'Assistente de Produção';
+            if (n.includes('auxiliar')) return 'Assistente de Produção';
+            if (n.includes('operador') || n.includes('maquinista') || n.includes('fabrica')) return 'Operador (Maquinista)';
+            return String(cat || 'Operador (Maquinista)').trim();
+        }
+
+        const userCat = canonicalizarCategoria(userCatRaw);
+        if (userCatRaw !== userCat) {
+            window.JwaySession.setCategory(userCat);
+        }
+
+        const isAdminStorage = window.JwaySession.get().isAdmin;
+        const isAdminCategoria = userCat === 'Administrador';
+        const isComercialOuGestao = userCat === 'Comercial';
+        const isFabrica =
+            userCat === 'Operador (Maquinista)' ||
+            userCat === 'Assistente de Produção' ||
+            userCat === 'Auxiliar de Produção';
+
+        window.userCanSeeSensitiveMapa = isAdminStorage || isAdminCategoria || isComercialOuGestao;
+        window.userIsFactoryRestricted = isFabrica && !window.userCanSeeSensitiveMapa;
+        window.userCanEditMapa = isAdminStorage || isAdminCategoria;
+
+        window.requireMapaEditPermission = function(acao) {
+            if (window.userCanEditMapa) return true;
+            window.showToast('Perfil sem permissão para ' + acao + '.', 'error');
+            return false;
+        };
+
+        if (!window.userCanEditMapa) {
+            document.body.classList.add('role-visualizador');
+        }
+        if (window.userIsFactoryRestricted) {
+            document.body.classList.add('role-fabrica');
+        }
+
+        const categoryColors = window.JwayCatColors;
+
+        function getCategoriaEmoji(cat) {
+            if (cat === 'Técnico de Desenho') return '<i class="fa-solid fa-pen-ruler"></i>';
+            if (cat === 'Operador (Maquinista)') return '<i class="fa-solid fa-gears"></i>';
+            if (cat === 'Assistente de Produção') return '<i class="fa-solid fa-clipboard-list"></i>';
+            if (cat === 'Comercial') return '<i class="fa-solid fa-briefcase"></i>';
+            if (cat === 'Administrador') return '<i class="fa-solid fa-shield-halved"></i>';
+            return '<i class="fa-solid fa-user"></i>';
+        }
+
+        function updateClock() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) clockEl.innerText = new Date().toLocaleDateString('pt-PT', options).toUpperCase();
+        }
+
+        function fazerLogout() {
+            jwayAuth.signOut().catch(() => {});
+            window.JwaySession.clear();
+            window.location.replace('index.html');
+        }
+
+        const db = jwayDB;
+        const auth = jwayAuth;
+
+        window.toggleMenuNav = function(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('menu-nav-dropdown');
+            if (menu) menu.classList.toggle('show');
+        };
+
+        window.addEventListener('click', function(e) {
+            const menu = document.getElementById('menu-nav-dropdown');
+            if (menu && menu.classList.contains('show') && !menu.contains(e.target)) {
+                menu.classList.remove('show');
+            }
+        });
+
+        renderNavigationMenu(window.JwaySession.get().isAdmin === true);
+
+        const nameEl = document.getElementById('logged-user-name');
+        const catEl = document.getElementById('logged-user-category');
+        if (nameEl) nameEl.innerText = userName;
+        if (catEl) {
+            catEl.innerHTML = `${getCategoriaEmoji(userCat)} ${userCat}`;
+            catEl.style.color = (categoryColors[userCat] || {}).color || '#ffffff';
+        }
+        const avStyle = categoryColors[userCat] || { color: '#00a8ff', bg: 'rgba(0,168,255,0.12)', border: 'rgba(0,168,255,0.35)' };
+        const avPartes = userName.trim().split(/\s+/);
+        const avInitials = avPartes.length >= 2 ? (avPartes[0][0] + avPartes[avPartes.length - 1][0]).toUpperCase() : (avPartes[0][0] || '?').toUpperCase();
+        const avEl = document.getElementById('topbar-avatar-encomendas');
+        if (avEl) {
+            avEl.textContent = avInitials;
+            avEl.style.background = avStyle.bg;
+            avEl.style.borderColor = avStyle.border;
+            avEl.style.color = avStyle.color;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let encomendas = [];
+        let faturasAdicionais = [];
+        let progressoTinturariaPorOF = {};
+        window.meuGrafico = null; 
+        window.meuGraficoClientes = null; 
+        window.encomendasFiltradasParaExport = []; 
+        window.filtroAtivoDash = null; 
+        
+        let configs = {
+            estados: ['TRICOTAGEM', 'TRICOTADO', 'TINTURARIA', 'CONFEÇÃO', 'EMBALAGEM', 'CANCELADO', 'ENVIADO', 'ENV. PARTE', 'OUTROS SERV', 'CONCLUIDO'],
+            tinturarias: ['N/A', 'Corfio', 'Rifer', 'Penteadora'],
+            leadTimes: { 'Artigo Novo': 8, 'Continuidade': 6 }
+        };
+
+        const mesesPT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+        window.normalizarEstadoFiltro = function(valor) {
+            if (valor === undefined || valor === null) return '';
+            return String(valor)
+                .trim()
+                .toUpperCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+        };
+
+        window.obterFiltrosEstadosGuardados = function() {
+            const savedStr = localStorage.getItem('jway_filtro_estados');
+            if (!savedStr) return null;
+            try {
+                const parsed = JSON.parse(savedStr);
+                return Array.isArray(parsed) ? parsed : null;
+            } catch (e) {
+                localStorage.removeItem('jway_filtro_estados');
+                return null;
+            }
+        };
+
+        window.obterFiltrosEstadosPredefinidos = function() {
+            return [''].concat(configs.estados.filter(e => window.normalizarEstadoFiltro(e) !== 'ENVIADO'));
+        };
+
+        window.obterFiltrosEstadosEfetivos = function() {
+            return window.obterFiltrosEstadosGuardados() || window.obterFiltrosEstadosPredefinidos();
+        };
+
+        const savedPesquisa = localStorage.getItem('jway_filtro_pesquisa');
+        if (savedPesquisa) { document.getElementById('filtro_pesquisa').value = savedPesquisa; }
+
+        window.showToast = function(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success'
+                ? '<i class="fa-solid fa-circle-check"></i>'
+                : type === 'error'
+                    ? '<i class="fa-solid fa-circle-xmark"></i>'
+                    : '<i class="fa-solid fa-circle-info"></i>';
+            toast.innerHTML = `<span style="font-size:1.2rem;">${icon}</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        window.uiConfirm = function(message, title = 'Confirmar ação') {
+            return new Promise((resolve) => {
+                let overlay = document.getElementById('ui-confirm-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'ui-confirm-overlay';
+                    overlay.className = 'modal';
+                    overlay.style.zIndex = '100005';
+                    overlay.innerHTML = `
+                        <div class="modal-content" style="max-width: 460px; text-align: center;">
+                            <div style="font-size: 2.2rem; color: var(--color-warn); margin-bottom: 10px;"><i class="fa-solid fa-circle-question"></i></div>
+                            <h3 id="ui-confirm-title" style="margin-top: 0;"></h3>
+                            <p id="ui-confirm-message" style="color:#ddd; line-height: 1.5; white-space: pre-line;"></p>
+                            <div style="display:flex; gap:10px; justify-content:center; margin-top: 20px; flex-wrap: wrap;">
+                                <button id="ui-confirm-cancel" class="btn-modern"><i class="fa-solid fa-xmark"></i> Cancelar</button>
+                                <button id="ui-confirm-ok" class="btn-modern" style="background: var(--color-ok); border-color: rgba(112,173,71,0.6);"><i class="fa-solid fa-check"></i> Confirmar</button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+
+                const titleEl = document.getElementById('ui-confirm-title');
+                const msgEl = document.getElementById('ui-confirm-message');
+                const cancelBtn = document.getElementById('ui-confirm-cancel');
+                const okBtn = document.getElementById('ui-confirm-ok');
+
+                if (titleEl) titleEl.textContent = title;
+                if (msgEl) msgEl.textContent = message;
+
+                const fechar = (valor) => {
+                    overlay.style.display = 'none';
+                    resolve(valor);
+                };
+
+                cancelBtn.onclick = () => fechar(false);
+                okBtn.onclick = () => fechar(true);
+                overlay.onclick = (e) => { if (e.target === overlay) fechar(false); };
+                overlay.style.display = 'flex';
+            });
+        };
+
+        window.formatarEuro = function(valor) {
+            const numero = parseFloat(valor) || 0;
+            return numero.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+        }
+
+        window.isDateValid = function(dStr) {
+            if (!dStr || String(dStr).trim() === '') return false;
+            const d = new Date(dStr);
+            return !isNaN(d.getTime());
+        };
+
+        function normalizarOF(valor) {
+            return String(valor || '').trim().toUpperCase();
+        }
+
+        function getPartidasArrayTinturaria(lote) {
+            if (!lote || !lote.partidas) return [];
+            if (Array.isArray(lote.partidas)) return lote.partidas;
+            if (typeof lote.partidas === 'object') return Object.values(lote.partidas);
+            return [];
+        }
+
+        function getEncomendasArrayTinturaria(lote) {
+            if (!lote || !lote.encomendas) return [];
+            if (Array.isArray(lote.encomendas)) return lote.encomendas;
+            if (typeof lote.encomendas === 'object') return Object.values(lote.encomendas);
+            if (typeof lote.encomendas === 'string') return lote.encomendas.split(',');
+            return [String(lote.encomendas)];
+        }
+
+        function rebuildTinturariaProgressMap(lotesTinturariaObj) {
+            const map = {};
+            const lotesTint = lotesTinturariaObj ? Object.values(lotesTinturariaObj) : [];
+
+            lotesTint.forEach((lote) => {
+                const partidas = getPartidasArrayTinturaria(lote);
+                const total = partidas.length;
+                if (total === 0) return;
+
+                let enviados = 0;
+                let recebidos = 0;
+                partidas.forEach((p) => {
+                    if (p && p.enviado === true) enviados++;
+                    if (p && p.recebido === true) recebidos++;
+                });
+
+                const ofsLote = getEncomendasArrayTinturaria(lote)
+                    .map(normalizarOF)
+                    .filter(Boolean);
+
+                ofsLote.forEach((of) => {
+                    if (!map[of]) map[of] = { total: 0, enviados: 0, recebidos: 0 };
+                    map[of].total += total;
+                    map[of].enviados += enviados;
+                    map[of].recebidos += recebidos;
+                });
+            });
+
+            Object.keys(map).forEach((of) => {
+                const item = map[of];
+                item.percEnv = item.total > 0 ? Math.round((item.enviados / item.total) * 100) : 0;
+                item.percRec = item.total > 0 ? Math.round((item.recebidos / item.total) * 100) : 0;
+            });
+
+            progressoTinturariaPorOF = map;
+        }
+
+        // QOL: TECLA ESC PARA FECHAR MODAIS
+        document.addEventListener('keydown', function(event) {
+            if (event.key === "Escape") {
+                window.fecharModalFiltros();
+                window.fecharEnvios();
+                window.fecharModalFaturas();
+                window.fecharDefinicoes();
+            }
+        });
+
+        // QOL: FECHAR MODAL AO CLICAR NA PARTE ESCURA DO FUNDO
+        document.getElementById('modal-filtros').addEventListener('click', function(e) {
+            if(e.target === this) { fecharModalFiltros(); }
+        });
+
+        // Lógica de "Scroll Inteligente" para Cabeçalho da Tabela e Botão Back To Top (QOL)
+        window.addEventListener('scroll', () => {
+            const btnTop = document.getElementById('btnBackTop');
+            if (btnTop) {
+                if (window.scrollY > 400) { btnTop.classList.add('show'); } 
+                else { btnTop.classList.remove('show'); }
+            }
+
+            const wrapper = document.querySelector('.table-wrapper');
+            const ths = document.querySelectorAll('#tabela-encomendas th');
+            const topScroll = document.getElementById('table-scroll-top');
+            if (!wrapper || ths.length === 0) return;
+
+            const rect = wrapper.getBoundingClientRect();
+            const headerHeight = ths[0].offsetHeight;
+            
+            if (rect.top < 0) {
+                let offset = Math.abs(rect.top);
+                const maxOffset = rect.height - headerHeight;
+                if (offset > maxOffset) offset = maxOffset;
+                ths.forEach(th => th.style.transform = `translateY(${offset}px)`);
+                if (topScroll) topScroll.style.transform = `translateY(${offset}px)`;
+            } else {
+                ths.forEach(th => th.style.transform = `translateY(0)`);
+                if (topScroll) topScroll.style.transform = 'translateY(0)';
+            }
+        });
+
+        let renderTimer = null;
+        let encomendasLoaderReady = false;
+
+        function hideEncomendasLoader() {
+            if (encomendasLoaderReady) return;
+            encomendasLoaderReady = true;
+            const loader = document.getElementById('loader');
+            if (!loader) return;
+            loader.classList.add('hidden');
+            setTimeout(() => { loader.style.display = 'none'; }, 230);
+        }
+
+        window.agendarRenderizacao = function() {
+            if (renderTimer) clearTimeout(renderTimer);
+            renderTimer = setTimeout(() => {
+                window.renderizarTabela();
+                window.atualizarDatalistClientes();
+                window.renderListaFaturas();
+                if (typeof window.renderizarResumos === 'function') window.renderizarResumos();
+            }, 100); 
+        };
+
+        db.ref('dados/mapa_encomendas/definicoes').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                configs.estados = data.estados || [];
+                configs.tinturarias = data.tinturarias || [];
+                configs.leadTimes = data.leadTimes || { 'Artigo Novo': 8, 'Continuidade': 6 };
+            } else {
+                db.ref('dados/mapa_encomendas/definicoes').set(configs).catch(e => console.log(e));
+            }
+            window.renderConfigListas();
+            window.atualizarLabelFiltros();
+            window.atualizarFormulariosUI();
+            window.agendarRenderizacao(); 
+        });
+
+        const refEncomendas = db.ref('dados/mapa_encomendas/encomendas');
+        setTimeout(() => hideEncomendasLoader(), 12000);
+        refEncomendas.once('value', () => hideEncomendasLoader());
+        refEncomendas.on('child_added', (snapshot) => {
+            encomendas.push({ id: snapshot.key, ...snapshot.val() });
+            window.agendarRenderizacao();
+        });
+        refEncomendas.on('child_changed', (snapshot) => {
+            const index = encomendas.findIndex(e => e.id === snapshot.key);
+            if (index !== -1) {
+                encomendas[index] = { id: snapshot.key, ...snapshot.val() };
+                window.agendarRenderizacao();
+            }
+        });
+        refEncomendas.on('child_removed', (snapshot) => {
+            encomendas = encomendas.filter(e => e.id !== snapshot.key);
+            window.agendarRenderizacao();
+        });
+
+        const refFaturas = db.ref('dados/mapa_encomendas/faturas');
+        refFaturas.on('child_added', (snapshot) => {
+            faturasAdicionais.push({ id: snapshot.key, ...snapshot.val() });
+            window.agendarRenderizacao();
+        });
+        refFaturas.on('child_changed', (snapshot) => {
+            const index = faturasAdicionais.findIndex(f => f.id === snapshot.key);
+            if (index !== -1) {
+                faturasAdicionais[index] = { id: snapshot.key, ...snapshot.val() };
+                window.agendarRenderizacao();
+            }
+        });
+        refFaturas.on('child_removed', (snapshot) => {
+            faturasAdicionais = faturasAdicionais.filter(f => f.id !== snapshot.key);
+            window.agendarRenderizacao();
+        });
+
+        db.ref('dados/mapa_tinturaria/partidas').on('value', (snapshot) => {
+            rebuildTinturariaProgressMap(snapshot.val() || {});
+            window.agendarRenderizacao();
+        });
+
+        window.exportarExcel = function() {
+            if (!window.encomendasFiltradasParaExport || window.encomendasFiltradasParaExport.length === 0) {
+                return window.showToast('Não há dados na tabela para exportar.', 'error');
+            }
+
+            const incluiDadosSensiveis = !!window.userCanSeeSensitiveMapa;
+
+            let headers = [
+                'Cliente',
+                'PO',
+                'Ordem Fabrico',
+                'Tipo Produção',
+                'Referência',
+                'Descrição',
+                'Cor',
+                'Quantidade',
+                'Estado Atual',
+                'Tinturaria',
+                'Data Entrega',
+                'Data Aprovação'
+            ];
+            if (incluiDadosSensiveis) {
+                headers.splice(6, 0, 'Cód. Cliente');
+                headers.splice(9, 0, 'Preço Unitário', 'Montante');
+            }
+
+            let csv = headers.join(';') + '\n';
+
+            window.encomendasFiltradasParaExport.forEach(enc => {
+                const estadoExcel = (!enc.estado || enc.estado === "") ? "(Vazio)" : enc.estado;
+                const esc = (text) => `"${(text || '').toString().replace(/"/g, '""')}"`;
+
+                let row = [
+                    esc(enc.cliente),
+                    esc(enc.po),
+                    esc(enc.of),
+                    esc(enc.tipo),
+                    esc(enc.ref),
+                    esc(enc.desc),
+                    esc(enc.cor),
+                    enc.quant,
+                    esc(estadoExcel),
+                    esc(enc.tinturaria),
+                    esc(enc.entrega),
+                    esc(enc.aprovacao)
+                ];
+
+                if (incluiDadosSensiveis) {
+                    row.splice(6, 0, esc(enc.cod_cli));
+                    row.splice(9, 0, enc.preco, enc.montante);
+                }
+
+                csv += row.join(';') + '\n';
+            });
+
+            const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Mapa_Encomendas_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.showToast('Ficheiro Excel gerado com sucesso!', 'success');
+        }
+
+        window.procurarMemoriaArtigo = function() {
+            const refInput = document.getElementById('ref');
+            const descInput = document.getElementById('desc');
+            const precoInput = document.getElementById('preco');
+
+            const refVal = refInput.value.trim().toLowerCase();
+            if (!refVal) return;
+
+            const historico = encomendas.filter(e => e.ref && String(e.ref).toLowerCase() === refVal);
+            if (historico.length > 0) {
+                historico.sort((a, b) => new Date(b.entrega || 0) - new Date(a.entrega || 0));
+                const recente = historico[0];
+
+                let preencheu = false;
+                if (!descInput.value && recente.desc) { descInput.value = recente.desc; preencheu = true; }
+                
+                const precoAtual = parseFloat(precoInput.value) || 0;
+                if (precoAtual === 0 && recente.preco) {
+                    precoInput.value = recente.preco;
+                    window.calcularMontante();
+                    preencheu = true;
+                }
+                if (preencheu) window.showToast('Artigo preenchido com histórico!', 'info');
+            }
+        }
+
+        window.isFiltrosEstadoAtivos = function() {
+            const ativos = new Set(window.obterFiltrosEstadosEfetivos().map(window.normalizarEstadoFiltro));
+            const todos = new Set(['', ...configs.estados.map(window.normalizarEstadoFiltro)]);
+            if (ativos.size !== todos.size) return true;
+            for (const estado of todos) {
+                if (!ativos.has(estado)) return true;
+            }
+            return false;
+        };
+
+        window.atualizarBotaoLimparPesquisa = function() {
+            const btnClear = document.getElementById('btn-clear-filters-map');
+            const input = document.getElementById('filtro_pesquisa');
+            if (!btnClear || !input) return;
+            const hasSearch = input.value.trim().length > 0;
+            const hasDashFilter = !!window.filtroAtivoDash;
+            const hasStateFilter = window.isFiltrosEstadoAtivos();
+            btnClear.style.display = (hasSearch || hasDashFilter || hasStateFilter) ? 'flex' : 'none';
+        };
+
+        window.guardarFiltroPesquisa = function() {
+            localStorage.setItem('jway_filtro_pesquisa', document.getElementById('filtro_pesquisa').value);
+            window.atualizarBotaoLimparPesquisa();
+        }
+        window.guardarFiltroAno = function() { localStorage.setItem('jway_filtro_ano', document.getElementById('filtro_ano').value); }
+
+        window.abrirModalFiltros = function() {
+            const savedRaw = window.obterFiltrosEstadosEfetivos();
+            const saved = new Set(savedRaw.map(window.normalizarEstadoFiltro));
+            
+            const container = document.getElementById('modal-filtros-lista');
+            
+            let html = `<button type="button" class="modal-state-item ${saved.has('') ? 'is-selected' : ''}" data-estado="" data-selected="${saved.has('') ? 'true' : 'false'}">
+                            <span class="state-check"><i class="fa-solid fa-check"></i></span>
+                            <span style="font-weight:bold; color:#aaa;">(Vazio)</span>
+                        </button>`;
+                        
+            html += configs.estados.map(e => {
+                const checked = saved.has(window.normalizarEstadoFiltro(e)) ? 'checked' : '';
+                const isSelected = checked ? 'is-selected' : '';
+                const selectedValue = checked ? 'true' : 'false';
+                return `<button type="button" class="modal-state-item ${isSelected}" data-estado="${e}" data-selected="${selectedValue}">
+                            <span class="state-check"><i class="fa-solid fa-check"></i></span>
+                            <span style="font-weight:bold;">${e}</span>
+                        </button>`;
+            }).join('');
+            
+            container.innerHTML = html;
+
+            container.querySelectorAll('.modal-state-item').forEach((item) => {
+                item.addEventListener('click', function() {
+                    const ativo = this.getAttribute('data-selected') === 'true';
+                    this.setAttribute('data-selected', ativo ? 'false' : 'true');
+                    this.classList.toggle('is-selected', !ativo);
+                });
+            });
+
+            document.getElementById('modal-filtros').style.display = 'flex';
+        }
+
+        window.fecharModalFiltros = function() { document.getElementById('modal-filtros').style.display = 'none'; }
+
+        window.toggleTodosFiltros = function(estado) {
+            document.querySelectorAll('.modal-state-item').forEach(item => {
+                item.setAttribute('data-selected', estado ? 'true' : 'false');
+                item.classList.toggle('is-selected', !!estado);
+            });
+        }
+
+        window.aplicarFiltrosEstados = function() {
+            const itens = document.querySelectorAll('.modal-state-item');
+            const selecionados = Array.from(itens)
+                .filter(i => i.getAttribute('data-selected') === 'true')
+                .map(i => i.getAttribute('data-estado') || '');
+            localStorage.setItem('jway_filtro_estados', JSON.stringify(selecionados));
+            
+            window.fecharModalFiltros();
+            window.atualizarLabelFiltros();
+            window.atualizarBotaoLimparPesquisa();
+            window.agendarRenderizacao();
+        }
+
+        window.atualizarLabelFiltros = function() {
+            const label = document.getElementById('count-filtros');
+            const ativos = new Set(window.obterFiltrosEstadosEfetivos().map(window.normalizarEstadoFiltro));
+            const total = new Set(['', ...configs.estados.map(window.normalizarEstadoFiltro)]);
+            if (ativos.size === 0) label.innerText = 'Nenhum';
+            else if (ativos.size === total.size) label.innerText = 'Todos';
+            else label.innerText = ativos.size + ' ativos';
+        }
+
+        window.limparFiltrosGerais = function() {
+            document.getElementById('filtro_pesquisa').value = '';
+            window.guardarFiltroPesquisa();
+            window.filtroAtivoDash = null;
+            
+            localStorage.removeItem('jway_filtro_estados'); 
+            window.atualizarLabelFiltros();
+            window.atualizarBotaoLimparPesquisa();
+
+            window.agendarRenderizacao();
+            window.showToast('Filtros repostos para a predefinição.', 'info');
+        }
+
+        window.ativarFiltroDash = function(tipo, valor) {
+            if (window.filtroAtivoDash && window.filtroAtivoDash.tipo === tipo && window.filtroAtivoDash.valor === valor) {
+                window.filtroAtivoDash = null; 
+            } else {
+                window.filtroAtivoDash = { tipo, valor };
+                window.showToast(`Filtro Aplicado: ${valor}`, 'info');
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }
+            window.atualizarBotaoLimparPesquisa();
+            window.agendarRenderizacao();
+        }
+
+        window.abrirDefinicoes = function() { 
+            if (!window.requireMapaEditPermission('abrir definicoes')) return;
+            window.renderConfigListas(); 
+            document.getElementById('cfg-lt-novo').value = configs.leadTimes['Artigo Novo'];
+            document.getElementById('cfg-lt-cont').value = configs.leadTimes['Continuidade'];
+            document.getElementById('modal-definicoes').style.display = 'flex'; 
+        }
+        
+        window.fecharDefinicoes = function() { 
+            document.getElementById('modal-definicoes').style.display = 'none'; 
+        }
+        
+        window.guardarLeadTimes = async function() {
+            if (!window.requireMapaEditPermission('guardar lead-times')) return;
+            const lts = {
+                'Artigo Novo': parseInt(document.getElementById('cfg-lt-novo').value) || 8,
+                'Continuidade': parseInt(document.getElementById('cfg-lt-cont').value) || 6
+            };
+            try {
+                await db.ref('dados/mapa_encomendas/definicoes').update({ leadTimes: lts });
+                window.showToast("Tempos guardados com sucesso!", "success");
+            } catch(e) { window.showToast("Erro ao guardar: " + e.message, 'error'); }
+        }
+
+        window.renderConfigListas = function() {
+            document.getElementById('lista-cfg-estados').innerHTML = configs.estados.map((e, i) => `<div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; font-weight:bold; font-size:0.8rem;">${e} <span style="color:red; cursor:pointer;" onclick="window.removerEstado(${i})"><i class="fa-solid fa-xmark"></i></span></div>`).join('');
+            document.getElementById('lista-cfg-tinturarias').innerHTML = configs.tinturarias.map((t, i) => `<div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.3); padding:8px; border-radius:4px; font-weight:bold; font-size:0.8rem;">${t} <span style="color:red; cursor:pointer;" onclick="window.removerTinturaria(${i})"><i class="fa-solid fa-xmark"></i></span></div>`).join('');
+        }
+
+        window.adicionarEstado = async function() { 
+            if (!window.requireMapaEditPermission('adicionar estados')) return;
+            const val = document.getElementById('novo-estado').value.trim().toUpperCase(); 
+            if(val && !configs.estados.includes(val)) { 
+                const novos = [...configs.estados, val];
+                try {
+                    await db.ref('dados/mapa_encomendas/definicoes').update({ estados: novos });
+                    document.getElementById('novo-estado').value = ''; 
+                } catch(e) { window.showToast("Erro ao guardar: " + e.message, 'error'); }
+            } 
+        }
+        
+        window.removerEstado = async function(index) {
+            if (!window.requireMapaEditPermission('remover estados')) return;
+            let novos = [...configs.estados]; novos.splice(index, 1);
+            try { await db.ref('dados/mapa_encomendas/definicoes').update({ estados: novos }); } 
+            catch(e) { window.showToast("Erro ao apagar: " + e.message, 'error'); }
+        }
+        
+        window.adicionarTinturaria = async function() { 
+            if (!window.requireMapaEditPermission('adicionar tinturarias')) return;
+            const val = document.getElementById('nova-tinturaria').value.trim(); 
+            if(val && !configs.tinturarias.includes(val)) { 
+                const novos = [...configs.tinturarias, val];
+                try {
+                    await db.ref('dados/mapa_encomendas/definicoes').update({ tinturarias: novos });
+                    document.getElementById('nova-tinturaria').value = ''; 
+                } catch(e) { window.showToast("Erro ao guardar: " + e.message, 'error'); }
+            } 
+        }
+        
+        window.removerTinturaria = async function(index) {
+            if (!window.requireMapaEditPermission('remover tinturarias')) return;
+            let novos = [...configs.tinturarias]; novos.splice(index, 1);
+            try { await db.ref('dados/mapa_encomendas/definicoes').update({ tinturarias: novos }); } 
+            catch(e) { window.showToast("Erro ao apagar: " + e.message, 'error'); }
+        }
+
+        window.formatarDataPT = function(dataStr) {
+            if (!dataStr) return '-';
+            const partes = dataStr.split('-');
+            if (partes.length !== 3) return dataStr;
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+
+        window.atualizarFormulariosUI = function() { 
+            document.getElementById('tinturaria').innerHTML = configs.tinturarias.map(t => `<option value="${t}">${t}</option>`).join(''); 
+            
+            const saved = window.obterFiltrosEstadosGuardados();
+            if (saved) {
+                if (!saved.includes('') && !localStorage.getItem('jway_vazio_patch_v22')) {
+                    saved.push('');
+                    localStorage.setItem('jway_filtro_estados', JSON.stringify(saved));
+                    localStorage.setItem('jway_vazio_patch_v22', 'true');
+                }
+            }
+            window.atualizarLabelFiltros();
+        }
+
+        window.atualizarDatalistClientes = function() {
+            const clientesUnicos = [...new Set(encomendas.map(e => e.cliente).filter(c => c && String(c).trim() !== ''))].sort();
+            document.getElementById('dl_clientes').innerHTML = clientesUnicos.map(c => `<option value="${c}">`).join('');
+        }
+
+        window.ordenarEncomendas = function() {
+            encomendas.sort((a, b) => {
+                try {
+                    const dA = String(a.entrega || '9999-99-99'); const dB = String(b.entrega || '9999-99-99');
+                    if (dA !== dB) return dA.localeCompare(dB);
+                    const cA = String(a.cliente || '').toLowerCase(); const cB = String(b.cliente || '').toLowerCase();
+                    if (cA !== cB) return cA.localeCompare(cB);
+                    const oA = String(a.of || '').toLowerCase(); const oB = String(b.of || '').toLowerCase();
+                    if (oA !== oB) return oA.localeCompare(oB);
+                    const refA = String(a.ref || '').toLowerCase(); const refB = String(b.ref || '').toLowerCase();
+                    return refA.localeCompare(refB);
+                } catch(e) { return 0; }
+            });
+        }
+
+        window.mudarTipoFatura = function() {
+            const tipo = document.getElementById('fat_tipo').value;
+            const containerAdi = document.getElementById('container_adiantamento');
+            if (tipo === 'Adiantamento') { containerAdi.style.display = 'block'; window.carregarOFsCliente(); } 
+            else { containerAdi.style.display = 'none'; }
+        }
+
+        window.carregarOFsCliente = function() {
+            const tipo = document.getElementById('fat_tipo').value;
+            if (tipo !== 'Adiantamento') return;
+            const cliente = document.getElementById('fat_cliente').value.trim().toLowerCase();
+            const boxOfs = document.getElementById('box_ofs');
+            if (!cliente) { boxOfs.innerHTML = '<span style="color:#888;">Insira o nome do cliente para ver as OFs ativas.</span>'; return; }
+            
+            const editId = document.getElementById('fat_edit_id').value;
+            let ofsNaFaturaAtual = [];
+            if (editId) {
+                const fat = faturasAdicionais.find(f => f.id === editId);
+                if (fat && fat.ofs) ofsNaFaturaAtual = fat.ofs;
+            }
+
+            const ofsValidas = encomendas.filter(e => {
+                if (String(e.cliente || '').toLowerCase() !== cliente) return false;
+                if (ofsNaFaturaAtual.includes(e.of)) return true;
+                if (e.estado === 'ENVIADO' || e.estado === 'CONCLUIDO' || e.estado === 'CANCELADO') return false;
+                return true;
+            });
+
+            if (ofsValidas.length === 0) { boxOfs.innerHTML = '<span style="color:var(--color-warn);">Nenhuma Ordem de Fabrico ativa encontrada.</span>'; } 
+            else { boxOfs.innerHTML = ofsValidas.map(e => `<label class="of-checkbox-label"><input type="checkbox" class="chk-fat-of" value="${e.of}"><span><b>OF: ${e.of}</b> <span style="opacity:0.7">(${window.formatarEuro(e.montante)})</span></span></label>`).join(''); }
+        }
+
+        window.limparFormularioFaturas = function() {
+            document.getElementById('fat_edit_id').value = '';
+            document.getElementById('fat_numero').value = '';
+            if(document.getElementById('fat_cliente')) document.getElementById('fat_cliente').value = '';
+            document.getElementById('fat_desc').value = ''; 
+            document.getElementById('fat_valor').value = '';
+            document.querySelectorAll('.chk-fat-of').forEach(cb => cb.checked = false);
+            
+            const btnSubmit = document.getElementById('btn-submit-fat');
+            btnSubmit.innerHTML = "Adicionar";
+            btnSubmit.style.background = "var(--color-clone)";
+            document.getElementById('btn-cancel-fat').style.display = "none";
+        }
+
+        window.abrirModalFaturas = function() {
+            window.atualizarDatalistClientes();
+            window.limparFormularioFaturas();
+            document.getElementById('fat_data').value = new Date().toISOString().split('T')[0];
+            const anoSelecionado = document.getElementById('filtro_ano').value;
+            document.getElementById('titulo-modal-faturas').innerHTML = `<i class="fa-solid fa-file-invoice-dollar"></i> Gestão de Faturas Adicionais <span style="color:var(--jway-blue); font-size:1rem;">(${anoSelecionado || ''})</span>`;
+            window.mudarTipoFatura(); 
+            window.renderListaFaturas();
+            document.getElementById('modal-faturas').style.display = 'flex';
+        }
+        
+        window.fecharModalFaturas = function() { document.getElementById('modal-faturas').style.display = 'none'; }
+
+        window.adicionarFatura = async function() {
+            if (!window.requireMapaEditPermission('gerir faturas')) return;
+            const editId = document.getElementById('fat_edit_id').value;
+            const tipo = document.getElementById('fat_tipo').value;
+            const numero = document.getElementById('fat_numero').value;
+            const data = document.getElementById('fat_data').value;
+            const desc = document.getElementById('fat_desc').value;
+            const valor = parseFloat(document.getElementById('fat_valor').value);
+            let cliente = ''; let ofsSelecionadas = [];
+
+            if(!data || isNaN(valor) || !numero) return window.showToast("Preencha o Nº Documento, Data e Valor.", "error");
+            if (tipo === 'Adiantamento') {
+                cliente = document.getElementById('fat_cliente').value;
+                document.querySelectorAll('.chk-fat-of:checked').forEach(cb => ofsSelecionadas.push(cb.value));
+                if(!cliente) return window.showToast("Preencha o Cliente.", "error");
+                if(ofsSelecionadas.length === 0) return window.showToast("Selecione pelo menos uma OF.", "error");
+            } else { cliente = document.getElementById('fat_cliente') ? document.getElementById('fat_cliente').value : ''; }
+
+            const novaFatura = { numero, tipo, cliente, ofs: ofsSelecionadas, data, desc, valor };
+            
+            try {
+                if (editId !== "") {
+                    await db.ref("dados/mapa_encomendas/faturas/" + editId).update(novaFatura); 
+                    window.showToast("Fatura atualizada com sucesso!", "success");
+                } else {
+                    await db.ref("dados/mapa_encomendas/faturas").push(novaFatura); 
+                    window.showToast("Documento registado com sucesso!", "success");
+                }
+                window.limparFormularioFaturas();
+            } catch (e) { window.showToast("Erro de ligação à base de dados: " + e.message, "error"); }
+        }
+
+        window.editarFatura = function(id) {
+            if (!window.requireMapaEditPermission('editar faturas')) return;
+            const fat = faturasAdicionais.find(f => f.id === id);
+            if(!fat) return;
+
+            document.getElementById('fat_edit_id').value = id;
+            document.getElementById('fat_tipo').value = fat.tipo || 'Fatura';
+            window.mudarTipoFatura(); 
+            
+            document.getElementById('fat_numero').value = fat.numero || '';
+            document.getElementById('fat_data').value = fat.data || '';
+            document.getElementById('fat_desc').value = fat.desc || '';
+            document.getElementById('fat_valor').value = fat.valor || '';
+            
+            if (fat.tipo === 'Adiantamento') {
+                document.getElementById('fat_cliente').value = fat.cliente || '';
+                window.carregarOFsCliente();
+                setTimeout(() => {
+                    if(fat.ofs) {
+                        document.querySelectorAll('.chk-fat-of').forEach(cb => {
+                            if(fat.ofs.includes(cb.value)) cb.checked = true;
+                        });
+                    }
+                }, 100);
+            } else {
+                if(document.getElementById('fat_cliente')) document.getElementById('fat_cliente').value = fat.cliente || '';
+            }
+
+            const btnSubmit = document.getElementById('btn-submit-fat');
+            btnSubmit.innerHTML = "Guardar";
+            btnSubmit.style.background = "var(--color-ok)";
+            document.getElementById('btn-cancel-fat').style.display = "block";
+            
+            document.querySelector('#modal-faturas .modal-content').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.apagarFatura = async function(id) {
+            if (!window.requireMapaEditPermission('apagar faturas')) return;
+            const confirmou = await window.uiConfirm("Remover esta fatura definitivamente?", "Confirmar eliminação");
+            if(!confirmou) return;
+            try { 
+                await db.ref(`dados/mapa_encomendas/faturas/${id}`).remove(); 
+                window.showToast("Fatura removida com sucesso.", "success");
+            } 
+            catch (e) { window.showToast("Erro ao apagar: " + e.message, "error"); }
+        }
+
+        window.renderListaFaturas = function() {
+            const container = document.getElementById('lista-faturas-adicionais');
+            const anoSelecionado = document.getElementById('filtro_ano').value;
+            const termoPesquisa = document.getElementById('filtro_faturas') ? document.getElementById('filtro_faturas').value.toLowerCase() : '';
+
+            const faturasFiltradas = faturasAdicionais.filter(fat => {
+                if(!fat.data || !String(fat.data).startsWith(anoSelecionado)) return false;
+                if (termoPesquisa) {
+                    const texto = `${fat.numero} ${fat.cliente || ''} ${fat.desc || ''}`.toLowerCase();
+                    if (!texto.includes(termoPesquisa)) return false;
+                }
+                return true;
+            });
+
+            if(faturasFiltradas.length === 0) { container.innerHTML = `<div class="texto-vazio" style="text-align:center; padding: 20px;">Nenhum documento encontrado.</div>`; return; }
+
+            faturasFiltradas.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            container.innerHTML = faturasFiltradas.map((fat) => {
+                let colorDoc = "var(--jway-blue)"; let displayValor = fat.valor;
+                if(fat.tipo === 'Nota de Crédito') { colorDoc = "var(--color-danger)"; displayValor = -Math.abs(fat.valor); } 
+                else if(fat.tipo === 'Adiantamento') { colorDoc = "var(--color-warn)"; }
+
+                let infoAdicional = (fat.tipo === 'Adiantamento' && fat.ofs && fat.ofs.length > 0) ? ` | <b>OFs: ${fat.ofs.join(', ')}</b>` : '';
+                let clienteDisplay = fat.cliente ? ` - <span style="color:white;">${fat.cliente}</span>` : '';
+
+                return `<div class="envio-row">
+                    <div style="flex:1;">
+                        <span style="color:${colorDoc}; font-weight:bold; display:block; font-size:1rem;">[${fat.tipo}] ${fat.numero}${clienteDisplay}</span>
+                        <span style="font-size:0.75rem; color:#aaa; margin-top:3px; display:inline-block;"><i class="fa-solid fa-calendar-days"></i> ${window.formatarDataPT(fat.data)}${infoAdicional} | <i class="fa-solid fa-circle-info"></i> ${fat.desc || '-'}</span>
+                    </div>
+                    <strong style="color:var(--color-clone); margin-right: 15px; font-size: 1.2rem;">${window.formatarEuro(displayValor)}</strong>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-mini-edit" onclick="window.editarFatura('${fat.id}')" title="Editar Fatura"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="btn-mini-del" onclick="window.apagarFatura('${fat.id}')" title="Remover Fatura"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.abrirModalEnvios = function(id) {
+            if (!window.requireMapaEditPermission('registar expedições')) return;
+            const enc = encomendas.find(e => e.id === id);
+            if(!enc) return;
+            document.getElementById('envio_enc_id').value = id;
+            document.getElementById('envio-enc-info').innerText = `OF: ${enc.of} | Cliente: ${enc.cliente} | Artigo: ${enc.ref}`;
+            document.getElementById('envio_data').value = new Date().toISOString().split('T')[0];
+            window.atualizarStatsEnvio(enc);
+            document.getElementById('modal-envios').style.display = 'flex';
+        }
+        window.fecharEnvios = function() { document.getElementById('modal-envios').style.display = 'none'; }
+        
+        window.atualizarStatsEnvio = function(enc) {
+            if(!enc.envios) enc.envios = [];
+            const quantTotal = parseFloat(enc.quant) || 0;
+            const enviado = enc.envios.reduce((acc, curr) => acc + (parseFloat(curr.quant) || 0), 0);
+            const restante = quantTotal - enviado;
+            
+            document.getElementById('stat-total').innerText = enc.quant;
+            document.getElementById('stat-enviado').innerText = enviado;
+            document.getElementById('stat-restante').innerText = Math.max(0, restante);
+            document.getElementById('envio_quant').value = restante > 0 ? restante : 0;
+
+            const hist = document.getElementById('lista-historico-envios');
+            if(enc.envios.length === 0) { hist.innerHTML = '<div class="texto-vazio" style="text-align:center;">Nenhum envio registado.</div>'; } 
+            else {
+                hist.innerHTML = enc.envios.map((env, i) => `
+                    <div class="envio-row"><span><i class="fa-solid fa-calendar-days"></i> ${window.formatarDataPT(env.data)}</span><strong><i class="fa-solid fa-box-open"></i> ${env.quant} un.</strong>
+                    <button class="btn-mini-del" onclick="window.apagarEnvio('${enc.id}', ${i})"><i class="fa-solid fa-xmark"></i></button></div>
+                `).join('');
+            }
+        }
+
+        window.registarEnvio = async function() {
+            if (!window.requireMapaEditPermission('registar expedições')) return;
+            const id = document.getElementById('envio_enc_id').value;
+            const q = parseFloat(document.getElementById('envio_quant').value);
+            const d = document.getElementById('envio_data').value;
+            
+            if(!q || q <= 0 || !window.isDateValid(d)) return window.showToast("Preencha a data e quantidade.", "error");
+            const enc = encomendas.find(e => e.id === id);
+            if(!enc) return;
+
+            let novosEnvios = enc.envios ? [...enc.envios] : [];
+            novosEnvios.push({ data: d, quant: q });
+            
+            const quantTotal = parseFloat(enc.quant) || 0;
+            const totalEnviado = novosEnvios.reduce((acc, curr) => acc + (parseFloat(curr.quant) || 0), 0);
+            let novoEstado = enc.estado || '';
+            
+            if(totalEnviado >= quantTotal) { novoEstado = 'ENVIADO'; } 
+            else if (totalEnviado >= quantTotal * 0.9) {
+                const restante = quantTotal - totalEnviado;
+                const confirmarEnvioTotal = await window.uiConfirm(`Faltam enviar apenas ${restante} unidades.\nDeseja dar esta encomenda como totalmente ENVIADA?`, "Confirmar estado ENVIADO");
+                if(confirmarEnvioTotal) { novoEstado = 'ENVIADO'; } 
+                else { novoEstado = 'ENV. PARTE'; }
+            } else { novoEstado = 'ENV. PARTE'; }
+
+            try {
+                await db.ref(`dados/mapa_encomendas/encomendas/${id}`).update({ envios: novosEnvios, estado: novoEstado });
+                window.fecharEnvios();
+                window.showToast("Expedição registada com sucesso!", "success");
+            } catch (e) { window.showToast("Erro ao registar envio na BD: " + e.message, "error"); }
+        }
+
+        window.apagarEnvio = async function(idEnc, envioIdx) {
+            if (!window.requireMapaEditPermission('apagar expedições')) return;
+            const enc = encomendas.find(e => e.id === idEnc);
+            if(!enc) return;
+            let novosEnvios = [...enc.envios];
+            novosEnvios.splice(envioIdx, 1);
+            
+            try {
+                await db.ref(`dados/mapa_encomendas/encomendas/${idEnc}`).update({ envios: novosEnvios });
+                window.fecharEnvios(); 
+                window.showToast("Expedição apagada.", "info");
+            } catch (e) { window.showToast("Erro ao apagar envio: " + e.message, "error"); }
+        }
+
+        window.inicializarDropdownAnos = function() {
+            const selectAno = document.getElementById('filtro_ano');
+            const anoAtual = new Date().getFullYear();
+            let anoMinimo = anoAtual;
+
+            encomendas.forEach(enc => { 
+                if(window.isDateValid(enc.entrega)) { const ano = parseInt(String(enc.entrega).substring(0, 4)); if(ano < anoMinimo) anoMinimo = ano; } 
+                if(enc.envios) enc.envios.forEach(e => { if(window.isDateValid(e.data)) { const ano = parseInt(String(e.data).substring(0,4)); if(ano < anoMinimo) anoMinimo = ano; }});
+            });
+            faturasAdicionais.forEach(fat => { 
+                if(window.isDateValid(fat.data)) { const ano = parseInt(String(fat.data).substring(0, 4)); if(ano < anoMinimo) anoMinimo = ano; } 
+            });
+
+            let valorAnterior = selectAno.value; 
+            if (!valorAnterior) {
+                valorAnterior = localStorage.getItem('jway_filtro_ano') || anoAtual.toString();
+            }
+
+            selectAno.innerHTML = '';
+            for(let ano = anoAtual + 1; ano >= anoMinimo; ano--) {
+                const selected = (valorAnterior === ano.toString() || (!valorAnterior && ano === anoAtual)) ? 'selected' : '';
+                selectAno.innerHTML += `<option value="${ano}" ${selected}>${ano}</option>`;
+            }
+        }
+
+        window.renderizarResumos = function() {
+            window.inicializarDropdownAnos(); 
+            const containerMensal = document.getElementById('resumo-mensal-container');
+            const containerCliente = document.getElementById('resumo-cliente-container');
+            const anoSelecionado = document.getElementById('filtro_ano').value;
+            let resMensal = {}; let resCliente = {};
+
+            const initKey = (obj, key, label) => { if(!obj[key]) obj[key] = { label: label, esperado: 0, real: 0, adicional: 0 }; };
+
+            let adiantamentosPorOF = {};
+            faturasAdicionais.forEach(fat => {
+                if (fat.tipo === 'Adiantamento' && fat.ofs && fat.ofs.length > 0) {
+                    let totalMontanteOFs = 0;
+                    fat.ofs.forEach(ofNum => { const enc = encomendas.find(e => e.of === ofNum); if(enc) totalMontanteOFs += (parseFloat(enc.montante)||0); });
+                    fat.ofs.forEach(ofNum => {
+                        const enc = encomendas.find(e => e.of === ofNum);
+                        if(enc) {
+                            const proporcao = totalMontanteOFs > 0 ? ((parseFloat(enc.montante)||0) / totalMontanteOFs) : 0;
+                            adiantamentosPorOF[ofNum] = (adiantamentosPorOF[ofNum] || 0) + (fat.valor * proporcao);
+                        }
+                    });
+                }
+            });
+
+            encomendas.forEach(enc => {
+                const adiantado = adiantamentosPorOF[enc.of] || 0;
+                const preco = parseFloat(enc.preco) || 0;
+                const montante = parseFloat(enc.montante) || 0;
+                const estado = enc.estado || '';
+                
+                const enviado = (enc.envios || []).reduce((acc, curr) => acc + (parseFloat(curr.quant) || 0), 0);
+                const valEnviado = enviado * preco;
+                const valRealTotal = Math.max(valEnviado, adiantado);
+                
+                let valEsp = Math.max(0, montante - valRealTotal);
+                if (['ENVIADO', 'CONCLUIDO', 'CANCELADO'].includes(estado)) { valEsp = 0; }
+
+                if (window.isDateValid(enc.entrega)) {
+                    const dataObj = new Date(enc.entrega);
+                    if (dataObj.getFullYear().toString() === anoSelecionado) {
+                        const mesKey = anoSelecionado + "-" + String(dataObj.getMonth()+1).padStart(2, '0');
+                        const mesLabel = mesesPT[dataObj.getMonth()] + " " + anoSelecionado;
+                        initKey(resMensal, mesKey, mesLabel); 
+                        resMensal[mesKey].esperado += valEsp;
+
+                        if(enc.cliente) {
+                            const cliKey = String(enc.cliente).toUpperCase();
+                            initKey(resCliente, cliKey, enc.cliente); 
+                            resCliente[cliKey].esperado += valEsp;
+                        }
+                    }
+                }
+
+                if (enc.envios) {
+                    enc.envios.forEach(env => {
+                        if(window.isDateValid(env.data)) {
+                            const dataEnvio = new Date(env.data);
+                            if (dataEnvio.getFullYear().toString() === anoSelecionado) {
+                                const valEnvioAtual = (parseFloat(env.quant)||0) * preco;
+                                const mesKey = anoSelecionado + "-" + String(dataEnvio.getMonth()+1).padStart(2, '0');
+                                const mesLabel = mesesPT[dataEnvio.getMonth()] + " " + anoSelecionado;
+                                initKey(resMensal, mesKey, mesLabel);
+                                resMensal[mesKey].real += valEnvioAtual;
+
+                                if(enc.cliente) {
+                                    const cliKey = String(enc.cliente).toUpperCase();
+                                    initKey(resCliente, cliKey, enc.cliente); 
+                                    resCliente[cliKey].real += valEnvioAtual;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if (adiantado > valEnviado && window.isDateValid(enc.entrega)) {
+                    const dataObj = new Date(enc.entrega);
+                    if (dataObj.getFullYear().toString() === anoSelecionado) {
+                        const excesso = adiantado - valEnviado;
+                        const mesKey = anoSelecionado + "-" + String(dataObj.getMonth()+1).padStart(2, '0');
+                        const mesLabel = mesesPT[dataObj.getMonth()] + " " + anoSelecionado;
+                        initKey(resMensal, mesKey, mesLabel); 
+                        resMensal[mesKey].real += excesso;
+
+                        if(enc.cliente) {
+                            const cliKey = String(enc.cliente).toUpperCase();
+                            initKey(resCliente, cliKey, enc.cliente); 
+                            resCliente[cliKey].real += excesso;
+                        }
+                    }
+                }
+            });
+
+            faturasAdicionais.forEach(fat => {
+                if(!fat.data || fat.tipo === 'Adiantamento') return; 
+                if(window.isDateValid(fat.data)) {
+                    const dataObj = new Date(fat.data);
+                    if (dataObj.getFullYear().toString() !== anoSelecionado) return;
+
+                    let valAdicional = parseFloat(fat.valor) || 0; 
+                    if(fat.tipo === 'Nota de Crédito') valAdicional = -Math.abs(valAdicional);
+                    const mesKey = anoSelecionado + "-" + String(dataObj.getMonth()+1).padStart(2, '0');
+                    const mesLabel = mesesPT[dataObj.getMonth()] + " " + anoSelecionado;
+                    initKey(resMensal, mesKey, mesLabel); resMensal[mesKey].adicional += valAdicional;
+
+                    if(fat.cliente) {
+                        const cliKey = String(fat.cliente).toUpperCase();
+                        initKey(resCliente, cliKey, fat.cliente); resCliente[cliKey].adicional += valAdicional;
+                    }
+                }
+            });
+
+            const keysMensal = Object.keys(resMensal).sort();
+            if(keysMensal.length === 0) { 
+                containerMensal.innerHTML = `<div style="opacity:0.5; font-style:italic;">Sem dados para ${anoSelecionado}.</div>`; 
+            } else {
+                let totalAnoEsperado = 0; let totalAnoReal = 0; let totalAnoAdicional = 0;
+
+                let htmlMeses = keysMensal.map(k => {
+                    const r = resMensal[k]; const total = r.esperado + r.real + r.adicional;
+                    totalAnoEsperado += r.esperado; totalAnoReal += r.real; totalAnoAdicional += r.adicional;
+
+                    let activeClass = (window.filtroAtivoDash && window.filtroAtivoDash.tipo === 'mes' && window.filtroAtivoDash.valor === k) ? 'active-card' : '';
+
+                    return `<div class="month-card clickable-card ${activeClass}" onclick="window.ativarFiltroDash('mes', '${k}')">
+                        <div class="month-card-title">${r.label}</div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Previsto:</span> <span class="val-esperado">${window.formatarEuro(r.esperado)}</span></div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Realizado:</span> <span class="val-real">${window.formatarEuro(r.real)}</span></div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Adicional:</span> <span style="color:var(--color-clone);">${window.formatarEuro(r.adicional)}</span></div>
+                        <div class="month-val-row total-row"><span style="color:#fff; font-weight:bold;">Total:</span> <span style="color:#fff; font-weight:bold;">${window.formatarEuro(total)}</span></div>
+                    </div>`;
+                }).join('');
+
+                const totalGeral = totalAnoEsperado + totalAnoReal + totalAnoAdicional;
+                let htmlTotal = `<div class="month-card" style="grid-column: 1 / -1; background: rgba(0, 168, 255, 0.1); border: 2px solid var(--jway-blue);">
+                    <div class="month-card-title" style="color: white; border-bottom-color: rgba(255,255,255,0.2);">RESUMO GERAL DE ${anoSelecionado}</div>
+                    <div style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px;">
+                        <div><span style="color:#aaa; font-weight:normal; font-size: 0.8rem;">Total Previsto</span><br><span class="val-esperado" style="font-size: 1.2rem;">${window.formatarEuro(totalAnoEsperado)}</span></div>
+                        <div><span style="color:#aaa; font-weight:normal; font-size: 0.8rem;">Total Realizado</span><br><span class="val-real" style="font-size: 1.2rem;">${window.formatarEuro(totalAnoReal)}</span></div>
+                        <div><span style="color:#aaa; font-weight:normal; font-size: 0.8rem;">Total Adicional</span><br><span style="color:var(--color-clone); font-size: 1.2rem;">${window.formatarEuro(totalAnoAdicional)}</span></div>
+                        <div style="border-left: 2px dashed rgba(255,255,255,0.2); padding-left: 20px;"><span style="color:#fff; font-weight:normal; font-size: 0.8rem;">Faturação Anual</span><br><span style="color:#fff; font-weight:bold; font-size: 1.4rem;">${window.formatarEuro(totalGeral)}</span></div>
+                    </div>
+                </div>`;
+
+                containerMensal.innerHTML = htmlMeses + htmlTotal;
+            }
+
+            const keysCliente = Object.keys(resCliente).sort();
+            if(keysCliente.length === 0) { 
+                containerCliente.innerHTML = `<div style="opacity:0.5; font-style:italic;">Sem dados para ${anoSelecionado}.</div>`; 
+            } else {
+                containerCliente.innerHTML = keysCliente.map(k => {
+                    const r = resCliente[k]; 
+                    // CORREÇÃO: O total do cartão cliente agora soma os 3 valores (Previsto + Realizado + Adicional)
+                    const total = r.esperado + r.real + r.adicional;
+                    let activeClass = (window.filtroAtivoDash && window.filtroAtivoDash.tipo === 'cliente' && window.filtroAtivoDash.valor === k) ? 'active-card' : '';
+
+                    return `<div class="month-card clickable-card ${activeClass}" onclick="window.ativarFiltroDash('cliente', '${k}')">
+                        <div class="month-card-title">${r.label}</div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Previsto:</span> <span class="val-esperado">${window.formatarEuro(r.esperado)}</span></div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Realizado:</span> <span class="val-real">${window.formatarEuro(r.real)}</span></div>
+                        <div class="month-val-row"><span style="color:#aaa; font-weight:normal;">Adicional:</span> <span style="color:var(--color-clone);">${window.formatarEuro(r.adicional)}</span></div>
+                        <div class="month-val-row total-row"><span style="color:#fff; font-weight:bold;">Total:</span> <span style="color:#fff; font-weight:bold;">${window.formatarEuro(total)}</span></div>
+                    </div>`;
+                }).join('');
+            }
+
+            if (typeof Chart !== 'undefined') {
+                // 1. Gráfico Anual de Barras (Meses)
+                const canvas = document.getElementById('graficoFaturacao');
+                if (canvas) {
+                    const ctx = canvas.getContext('2d');
+                    const labelsGrafico = mesesPT;
+                    const dataPrev = Array(12).fill(0); const dataReal = Array(12).fill(0); const dataAdic = Array(12).fill(0);
+
+                    Object.keys(resMensal).forEach(k => {
+                        let mesIdx = parseInt(k.split('-')[1]) - 1; 
+                        dataPrev[mesIdx] = resMensal[k].esperado; dataReal[mesIdx] = resMensal[k].real; dataAdic[mesIdx] = resMensal[k].adicional;
+                    });
+
+                    if(window.meuGrafico) window.meuGrafico.destroy();
+                    
+                    window.meuGrafico = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labelsGrafico,
+                            datasets: [
+                                { label: 'Realizado', data: dataReal, backgroundColor: '#70AD47' },
+                                { label: 'Previsto', data: dataPrev, backgroundColor: '#00a8ff' },
+                                { label: 'Adicional', data: dataAdic, backgroundColor: '#f39c12' }
+                            ]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            scales: {
+                                x: { stacked: true, ticks: { color: '#ccc' }, grid: { display: false } },
+                                y: { stacked: true, ticks: { color: '#ccc' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#fff' } },
+                                tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + window.formatarEuro(context.parsed.y); } } }
+                            }
+                        }
+                    });
+                }
+
+                // 2. NOVO: Gráfico Doughnut/Pie de Clientes
+                const canvasPie = document.getElementById('graficoClientes');
+                if (canvasPie && keysCliente.length > 0) {
+                    const ctxPie = canvasPie.getContext('2d');
+
+                    // Ordenar clientes para que as fatias maiores apareçam primeiro
+                    const clientKeysOrdered = keysCliente.sort((a, b) => {
+                        const totalA = resCliente[a].esperado + resCliente[a].real + resCliente[a].adicional;
+                        const totalB = resCliente[b].esperado + resCliente[b].real + resCliente[b].adicional;
+                        return totalB - totalA;
+                    });
+
+                    const labelsPie = clientKeysOrdered.map(k => resCliente[k].label);
+                    const dataPie = clientKeysOrdered.map(k => resCliente[k].esperado + resCliente[k].real + resCliente[k].adicional);
+
+                    if (window.meuGraficoClientes) window.meuGraficoClientes.destroy();
+
+                    window.meuGraficoClientes = new Chart(ctxPie, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labelsPie,
+                            datasets: [{
+                                data: dataPie,
+                                backgroundColor: [
+                                    '#00a8ff', '#70AD47', '#f39c12', '#9b59b6', '#ff4757',
+                                    '#1abc9c', '#2ecc71', '#34495e', '#e67e22', '#e74c3c',
+                                    '#f1c40f', '#8e44ad', '#2c3e50', '#d35400', '#c0392b'
+                                ],
+                                borderWidth: 1,
+                                borderColor: '#050d1a'
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'right', labels: { color: '#ccc', boxWidth: 12, font: {size: 10} } },
+                                tooltip: { callbacks: { label: function(context) { return ' ' + context.label + ': ' + window.formatarEuro(context.parsed); } } }
+                            },
+                            cutout: '60%'
+                        }
+                    });
+                } else if (canvasPie) {
+                     if (window.meuGraficoClientes) window.meuGraficoClientes.destroy();
+                }
+            }
+
+            const badge = document.getElementById('badge-filtro-dash');
+            if (window.filtroAtivoDash) {
+                badge.style.display = 'inline-flex';
+                badge.innerText = `Filtro: ${window.filtroAtivoDash.valor}`;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        window.calcularMontante = function() {
+            const q = parseFloat(document.getElementById('quant').value) || 0;
+            const p = parseFloat(document.getElementById('preco').value) || 0;
+            document.getElementById('montante_total').value = window.formatarEuro(q * p);
+        }
+
+        window.lerFormulario = function() {
+            return {
+                cliente: document.getElementById('cliente').value, po: document.getElementById('po').value.toUpperCase(),
+                of: document.getElementById('of').value.toUpperCase(), tipo: document.getElementById('tipo_producao').value,
+                ref: document.getElementById('ref').value.toUpperCase(), desc: document.getElementById('desc').value,
+                cod_cli: document.getElementById('cod_cli').value.toUpperCase(), cor: document.getElementById('cor').value,
+                quant: parseFloat(document.getElementById('quant').value) || 0, preco: parseFloat(document.getElementById('preco').value) || 0,
+                montante: (parseFloat(document.getElementById('quant').value)||0) * (parseFloat(document.getElementById('preco').value)||0),
+                tinturaria: document.getElementById('tinturaria').value, entrega: document.getElementById('data_entrega').value,
+            };
+        }
+
+        window.salvarEncomenda = async function() {
+            if (!window.requireMapaEditPermission('guardar encomendas')) return;
+            const dados = window.lerFormulario();
+            // Validação atualizada: Cod Cliente já não é obrigatório
+            if (!dados.cliente || !dados.of || !dados.ref || !dados.cor || !dados.entrega || !dados.desc || dados.quant <= 0 || dados.preco <= 0) {
+                return window.showToast("Preencha todos os campos obrigatórios.", "error");
+            }
+            const editId = document.getElementById('edit_id').value;
+
+            try {
+                if (editId !== "") {
+                    await db.ref(`dados/mapa_encomendas/encomendas/${editId}`).update(dados);
+                    window.showToast("Alterações guardadas com sucesso!", "success");
+                } else {
+                    dados.estado = ''; 
+                    dados.aprovacao = ''; 
+                    dados.envios = [];
+                    await db.ref("dados/mapa_encomendas/encomendas").push(dados);
+                    window.showToast("Nova encomenda inserida com sucesso!", "success");
+                }
+                window.limparCampos();
+            } catch(e) { window.showToast("Erro ao guardar: " + e.message, "error"); }
+        }
+
+        window.salvarComoClone = async function() {
+            if (!window.requireMapaEditPermission('clonar encomendas')) return;
+            const dados = window.lerFormulario();
+            if (!dados.cliente || !dados.of || !dados.entrega) return window.showToast("Faltam dados essenciais.", "error");
+            dados.estado = ''; 
+            dados.aprovacao = ''; dados.envios = []; 
+            try {
+                await db.ref("dados/mapa_encomendas/encomendas").push(dados);
+                window.showToast("Encomenda clonada com sucesso!", "success");
+                window.limparCampos();
+            } catch(e) { window.showToast("Erro ao clonar: " + e.message, "error"); }
+        }
+
+        window.editarEncomenda = function(id) {
+            if (!window.requireMapaEditPermission('editar encomendas')) return;
+            const enc = encomendas.find(e => e.id === id);
+            if(!enc) return;
+            document.getElementById('cliente').value = enc.cliente || ''; document.getElementById('po').value = enc.po || '';
+            document.getElementById('of').value = enc.of || ''; document.getElementById('tipo_producao').value = enc.tipo || 'Artigo Novo';
+            document.getElementById('ref').value = enc.ref || ''; document.getElementById('desc').value = enc.desc || '';
+            document.getElementById('cod_cli').value = enc.cod_cli || ''; document.getElementById('cor').value = enc.cor || '';
+            document.getElementById('quant').value = enc.quant || 0; document.getElementById('preco').value = enc.preco || 0;
+            document.getElementById('tinturaria').value = enc.tinturaria || configs.tinturarias[0]; document.getElementById('data_entrega').value = enc.entrega || '';
+            window.calcularMontante();
+            document.getElementById('edit_id').value = id;
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.innerHTML = "GUARDAR ALTERAÇÕES"; btnSubmit.style.background = "var(--color-ok)";
+            document.getElementById('btn-clone').style.display = "block"; document.getElementById('btn-cancel').style.display = "block";
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            setTimeout(() => document.getElementById('cliente').focus(), 300);
+        }
+
+        window.cancelarEdicao = function() { window.limparCampos(); }
+
+        window.atualizarEstado = async function(id, novoEstado) {
+            if (!window.requireMapaEditPermission('atualizar estado')) return;
+            try { 
+                await db.ref(`dados/mapa_encomendas/encomendas/${id}`).update({ estado: novoEstado }); 
+                window.showToast("Estado atualizado!", "info");
+            } 
+            catch(e) { window.showToast("Erro ao atualizar: " + e.message, "error"); }
+        }
+        
+        window.atualizarAprovacao = async function(id, novaData) {
+            if (!window.requireMapaEditPermission('atualizar aprovação')) return;
+            try { 
+                await db.ref(`dados/mapa_encomendas/encomendas/${id}`).update({ aprovacao: novaData }); 
+                window.showToast("Aprovação atualizada!", "info");
+            } 
+            catch(e) { window.showToast("Erro ao atualizar: " + e.message, "error"); }
+        }
+        
+        window.removerEncomenda = async function(id) { 
+            if (!window.requireMapaEditPermission('remover encomendas')) return;
+            const confirmou = await window.uiConfirm("Remover esta encomenda? O seu histórico associado será apagado.", "Confirmar eliminação");
+            if(!confirmou) return;
+            try { 
+                await db.ref(`dados/mapa_encomendas/encomendas/${id}`).remove(); 
+                window.showToast("Encomenda removida.", "success");
+            } 
+            catch(e) { window.showToast("Erro ao apagar: " + e.message, "error"); }
+        }
+
+        window.renderizarTabela = function() {
+            window.ordenarEncomendas();
+            const corpo = document.getElementById('lista-corpo');
+            corpo.innerHTML = '';
+
+            const filtroPesquisa = document.getElementById('filtro_pesquisa').value.toLowerCase();
+            
+            const estadosSelecionados = window.obterFiltrosEstadosEfetivos();
+            const estadosSelecionadosNorm = new Set(estadosSelecionados.map(window.normalizarEstadoFiltro));
+
+            if (estadosSelecionados.length === 0) {
+                corpo.innerHTML = '<tr><td colspan="16" style="text-align:center; padding: 40px; opacity:0.6; font-style: italic;">Nenhum estado selecionado nos filtros.</td></tr>';
+                window.encomendasFiltradasParaExport = [];
+                window.atualizarScrollHorizontalFixo();
+                return;
+            }
+
+            window.encomendasFiltradasParaExport = []; 
+
+            encomendas.forEach((enc) => {
+                try {
+                    const estadoAtual = enc.estado !== undefined && enc.estado !== null ? String(enc.estado).trim() : '';
+                    const estadoAtualNorm = window.normalizarEstadoFiltro(estadoAtual);
+                    const ofNorm = normalizarOF(enc.of);
+                    const progressoTint = ofNorm ? progressoTinturariaPorOF[ofNorm] : null;
+
+                    if (estadosSelecionados.length > 0 && !estadosSelecionadosNorm.has(estadoAtualNorm)) return;
+                    
+                    if (filtroPesquisa) {
+                        const stringBusca = `${enc.cliente} ${enc.of} ${enc.po} ${enc.ref} ${enc.desc}`.toLowerCase();
+                        if (!stringBusca.includes(filtroPesquisa)) return;
+                    }
+
+                    if (window.filtroAtivoDash) {
+                        if (window.filtroAtivoDash.tipo === 'mes') {
+                            if (!enc.entrega || !String(enc.entrega).startsWith(window.filtroAtivoDash.valor)) return;
+                        } else if (window.filtroAtivoDash.tipo === 'cliente') {
+                            if (String(enc.cliente || '').toUpperCase() !== window.filtroAtivoDash.valor) return;
+                        }
+                    }
+
+                    window.encomendasFiltradasParaExport.push(enc);
+
+                    const tr = document.createElement('tr');
+                    
+                    let stClass = "st-vazio";
+                    if (estadoAtual !== '') {
+                        const baseClass = "st-" + String(estadoAtual).toLowerCase().replace(/ /g,'_').replace(/\./g,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                        if (['st-tricotagem','st-tricotado','st-tinturaria','st-confecao','st-embalagem','st-concluido','st-cancelado','st-enviado','st-env_parte','st-outros_serv'].includes(baseClass)) {
+                            stClass = baseClass;
+                        } else {
+                            stClass = "st-color-default";
+                        }
+                    }
+
+                    let opcoesEstados = `<option value="" ${estadoAtual === '' ? 'selected' : ''}></option>` + configs.estados.map(opt => `<option value="${opt}" ${estadoAtual === opt ? 'selected' : ''}>${opt}</option>`).join('');
+                    
+                    const badgeTipo = enc.tipo === 'Continuidade' ? 'st-continuidade' : 'st-novo';
+                    
+                    let displayAprovacao = enc.tipo === 'Continuidade'
+                        ? '<span class="texto-vazio">-</span>'
+                        : (window.userCanEditMapa
+                            ? `<input type="date" class="inline-date" value="${enc.aprovacao || ''}" onchange="window.atualizarAprovacao('${enc.id}', this.value)">`
+                            : `<span>${window.formatarDataPT(enc.aprovacao)}</span>`);
+
+                    const enviado = (enc.envios || []).reduce((acc, curr) => acc + (parseFloat(curr.quant) || 0), 0);
+                    
+                    let displayQuant = enc.quant;
+                    let displayMontante = `<span class="montante-val">${window.formatarEuro(enc.montante)}</span>`;
+
+                    if (estadoAtual === 'ENVIADO' || estadoAtual === 'ENV. PARTE') {
+                        displayQuant = `
+                            <div class="tooltip-container">
+                                <span class="quant-underline">${enc.quant}</span>
+                                <div class="custom-tooltip">
+                                    <div style="color:var(--jway-blue); margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:3px;">Registo de Envios</div>
+                                    Expedido: <span style="color:var(--color-ok);">${enviado} un.</span>
+                                </div>
+                            </div>`;
+                        
+                        const valReal = enviado * enc.preco;
+                        let valEsp = Math.max(0, enc.montante - valReal);
+                        if (['ENVIADO', 'CONCLUIDO', 'CANCELADO'].includes(estadoAtual)) valEsp = 0; 
+                        
+                        displayMontante = `
+                            <div class="tooltip-container">
+                                <span class="quant-underline montante-val">${window.formatarEuro(enc.montante)}</span>
+                                <div class="custom-tooltip" style="min-width: 150px;">
+                                    <div style="color:var(--jway-blue); margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:3px;">Detalhe Financeiro</div>
+                                    <div style="text-align: left;">
+                                        <span style="color:#aaa; font-weight:normal;">Realizado:</span> <span style="color:var(--color-ok); float:right; margin-left:10px;">${window.formatarEuro(valReal)}</span><br>
+                                        <span style="color:#aaa; font-weight:normal;">Previsto:</span> <span style="color:white; float:right; margin-left:10px;">${window.formatarEuro(valEsp)}</span>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+
+                    let displayEntrega = window.formatarDataPT(enc.entrega);
+                    let tooltipContentDate = "";
+                    let dataClass = "";
+
+                    if (enc.entrega && !['ENVIADO', 'CONCLUIDO', 'CANCELADO'].includes(estadoAtual)) {
+                        const hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        const dataEnt = new Date(enc.entrega);
+                        if (!isNaN(dataEnt)) {
+                            dataEnt.setHours(0, 0, 0, 0);
+                            const diffDays = Math.ceil((dataEnt - hoje) / (1000 * 60 * 60 * 24));
+                            
+                            if (diffDays < 0) {
+                                dataClass = "date-overdue";
+                            } else if (diffDays <= 5) {
+                                dataClass = "date-warning";
+                            }
+                        }
+                    }
+
+                    if (enc.tipo === 'Continuidade' && enc.entrega) {
+                        let dataEnt = new Date(enc.entrega);
+                        if (!isNaN(dataEnt)) {
+                            let semanas = configs.leadTimes['Continuidade'];
+                            dataEnt.setDate(dataEnt.getDate() - (semanas * 7));
+                            let dataPrevista = dataEnt.toISOString().split('T')[0];
+                            tooltipContentDate = `Data prevista de início de produção:<br><span style="color:var(--color-clone); font-size:1rem;">${window.formatarDataPT(dataPrevista)}</span>`;
+                        }
+                    } else if (enc.tipo === 'Artigo Novo') {
+                        if (enc.aprovacao) {
+                            let dataApr = new Date(enc.aprovacao);
+                            if (!isNaN(dataApr)) {
+                                let semanas = configs.leadTimes['Artigo Novo'];
+                                dataApr.setDate(dataApr.getDate() + (semanas * 7));
+                                let dataPrevista = dataApr.toISOString().split('T')[0];
+                                tooltipContentDate = `Data de conclusão prevista:<br><span style="color:var(--color-ok); font-size:1rem;">${window.formatarDataPT(dataPrevista)}</span>`;
+                            }
+                        } else {
+                            tooltipContentDate = `<span style="color:var(--color-warn);">Falta Data de Aprovação</span><br>para calcular conclusão.`;
+                        }
+                    }
+
+                    if (tooltipContentDate) {
+                        displayEntrega = `
+                            <div class="tooltip-container">
+                                <span class="date-underline ${dataClass}">${window.formatarDataPT(enc.entrega)}</span>
+                                <div class="custom-tooltip" style="min-width: 200px;">
+                                    <div style="color:var(--jway-blue); margin-bottom:5px; border-bottom:1px solid rgba(255,255,255,0.2); padding-bottom:3px;">Cálculo Lead-Time (${configs.leadTimes[enc.tipo]} Semanas)</div>
+                                    ${tooltipContentDate}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        displayEntrega = `<span class="${dataClass}" style="display:inline-block; padding: 2px 4px; border-radius:4px;">${window.formatarDataPT(enc.entrega)}</span>`;
+                    }
+
+                    let classShipBtn = "btn-action ship";
+                    if (estadoAtual === 'ENVIADO' && enviado === 0) {
+                        classShipBtn += " glow-btn-ship";
+                    }
+
+                    const glowRegra1 = !!progressoTint && progressoTint.percEnv >= 100 && (estadoAtualNorm === 'TRICOTAGEM' || estadoAtualNorm === 'TRICOTADO');
+                    const glowRegra2 = !!progressoTint && progressoTint.percRec >= 100 && estadoAtualNorm === 'TINTURARIA';
+                    const classGlowEstado = (glowRegra1 || glowRegra2) ? 'glow-estado-atrasado' : '';
+                    const titleGlowEstado = glowRegra1
+                        ? 'Tinturaria: enviado a 100%, mas OF ainda em tricotagem/tricotado.'
+                        : glowRegra2
+                            ? 'Tinturaria: recebido a 100%, mas OF ainda em tinturaria.'
+                            : '';
+
+                    const estadoHtml = window.userCanEditMapa
+                        ? `<select class="badge ${stClass} ${classGlowEstado}" title="${titleGlowEstado}" onchange="window.atualizarEstado('${enc.id}', this.value)">${opcoesEstados}</select>`
+                        : `<span class="badge ${stClass} ${classGlowEstado}" title="${titleGlowEstado}">${estadoAtual || 'PENDENTE'}</span>`;
+
+                    const acoesHtml = window.userCanEditMapa
+                        ? `<td class="action-btns">
+                            <button class="${classShipBtn}" onclick="window.abrirModalEnvios('${enc.id}')" title="Registar Expedição"><i class="fa-solid fa-box-open"></i></button>
+                            <button class="btn-action edit" onclick="window.editarEncomenda('${enc.id}')" title="Editar / Clonar"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button class="btn-action delete" onclick="window.removerEncomenda('${enc.id}')" title="Remover"><i class="fa-solid fa-trash"></i></button>
+                        </td>`
+                        : '<td class="action-btns"></td>';
+
+                    tr.innerHTML = `
+                        <td><strong>${enc.cliente || ''}</strong></td><td>${enc.po || ''}</td><td>${enc.of || ''}</td>
+                        <td><span class="badge ${badgeTipo}">${enc.tipo || ''}</span></td>
+                        <td>${enc.ref || ''}</td><td><span class="texto-desc" title="${enc.desc || ''}">${enc.desc || '-'}</span></td>
+                        <td class="sensitive-client-code">${enc.cod_cli || ''}</td><td>${enc.cor || ''}</td>
+                        
+                        <td>${displayQuant}</td>
+                        <td class="sensitive-finance">${window.formatarEuro(enc.preco)}</td>
+                        <td class="sensitive-finance">${displayMontante}</td>
+                        
+                        <td>${estadoHtml}</td>
+                        <td>${enc.tinturaria || ''}</td><td class="col-data">${displayEntrega}</td><td>${displayAprovacao}</td>
+                        ${acoesHtml}
+                    `;
+                    corpo.appendChild(tr);
+
+                } catch (err) {
+                    console.error("Erro ao renderizar linha: ", enc, err);
+                }
+            });
+
+            window.atualizarScrollHorizontalFixo();
+        }
+
+        let syncScrollTopLock = false;
+        let syncScrollBottomLock = false;
+
+        window.atualizarScrollHorizontalFixo = function() {
+            const topScroll = document.getElementById('table-scroll-top');
+            const topInner = document.getElementById('table-scroll-top-inner');
+            const wrapper = document.querySelector('.table-wrapper');
+            const tabela = document.getElementById('tabela-encomendas');
+            if (!topScroll || !topInner || !wrapper || !tabela) return;
+
+            topInner.style.width = `${tabela.scrollWidth}px`;
+            const precisaScroll = tabela.scrollWidth > wrapper.clientWidth + 2;
+            topScroll.style.display = precisaScroll ? 'block' : 'none';
+
+            if (!syncScrollBottomLock) {
+                syncScrollTopLock = true;
+                topScroll.scrollLeft = wrapper.scrollLeft;
+                syncScrollTopLock = false;
+            }
+        };
+
+        window.inicializarScrollHorizontalFixo = function() {
+            const topScroll = document.getElementById('table-scroll-top');
+            const wrapper = document.querySelector('.table-wrapper');
+            if (!topScroll || !wrapper || topScroll.dataset.syncReady === 'true') return;
+
+            topScroll.dataset.syncReady = 'true';
+
+            topScroll.addEventListener('scroll', function() {
+                if (syncScrollTopLock) return;
+                syncScrollBottomLock = true;
+                wrapper.scrollLeft = topScroll.scrollLeft;
+                syncScrollBottomLock = false;
+            });
+
+            wrapper.addEventListener('scroll', function() {
+                if (syncScrollBottomLock) return;
+                syncScrollTopLock = true;
+                topScroll.scrollLeft = wrapper.scrollLeft;
+                syncScrollTopLock = false;
+            });
+
+            window.addEventListener('resize', window.atualizarScrollHorizontalFixo);
+            window.atualizarScrollHorizontalFixo();
+        };
+
+        window.limparCampos = function() {
+            document.querySelectorAll('.form-container input').forEach(i => i.value = (i.type === 'number' ? 0 : ''));
+            document.getElementById('montante_total').value = "0,00 €";
+            document.getElementById('tipo_producao').value = "Artigo Novo";
+            
+            document.getElementById('edit_id').value = "";
+            const btnSubmit = document.getElementById('btn-submit');
+            btnSubmit.innerHTML = '<i class="fa-solid fa-inbox"></i> REGISTAR NOVA ENCOMENDA NO MAPA';
+            btnSubmit.style.background = "var(--jway-blue)";
+            document.getElementById('btn-clone').style.display = "none";
+            document.getElementById('btn-cancel').style.display = "none";
+        }
+
+        window.atualizarFormulariosUI();
+        window.atualizarBotaoLimparPesquisa();
+        window.limparCampos(); 
+        window.inicializarScrollHorizontalFixo();
+        window.atualizarScrollHorizontalFixo();
+    </script>
+</body>
+</html>
+

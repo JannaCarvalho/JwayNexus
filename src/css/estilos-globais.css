@@ -908,7 +908,15 @@ select.ui-dropdown:focus {
     .action-bar > div { width: 100%; flex-direction: column; gap: 10px; }
     .search-bar-container { width: 100%; }
     .search-input { height: 45px; font-size: 1rem; } 
-    #btn-clear-filters { width: 100%; margin: 0; height: 45px; }
+    #btn-clear-filters {
+        width: 34px;
+        height: 34px;
+        margin: 0;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        border-radius: 50%;
+    }
     
     .menu-dropdown-container { width: 100%; display: flex; flex-direction: column; gap: 8px; }
     .menu-dropdown-container > button { width: 100%; height: 45px; justify-content: center; }

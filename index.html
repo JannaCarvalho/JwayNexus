@@ -18,10 +18,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            min-height: 100dvh;
             margin: 0;
             position: relative;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         body::before,
         body::after {
@@ -115,8 +116,14 @@
             to { transform: rotate(360deg); }
         }
         @media (max-width: 480px) {
-            .login-shell { padding: 14px; }
-            .login-box { padding: 28px 22px; }
+            body {
+                align-items: flex-start;
+            }
+            .login-shell {
+                padding: 10px;
+                margin: 10px 0;
+            }
+            .login-box { padding: 22px 16px; }
         }
     </style>
 </head>

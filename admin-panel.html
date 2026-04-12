@@ -34,6 +34,26 @@
     <script src="src/js/firebase-config.js"></script>
     <script src="src/js/imprimir-admin.js"></script>
 
+    <style>
+        @media (max-width: 768px) {
+            .dashboard-widgets-container > .dashboard-widget {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+
+            .dashboard-widgets-container > div[style*="min-width: 350px"] {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+
+            .dashboard-widgets-container div[style*="min-width:220px"],
+            .dashboard-widgets-container div[style*="min-width: 220px"] {
+                min-width: 0 !important;
+                width: 100% !important;
+            }
+        }
+    </style>
+
 </head>
 <body style="padding-top: 52px;">
 

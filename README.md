@@ -8,7 +8,7 @@ Pensar em maneira de inserir as partidas do excel
 
 
 dashboard-maquinas.html
-	- Verificar ordenaçao das maquinas no smartphone
+
 admin-panel.html
 	- Ligação a base de dados no smartphone ( botao atualizar dados deveria estar lado a lado com o do estdado da ligação)
 	- melhorar no geral a vista para smartphone

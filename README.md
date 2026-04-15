@@ -5,6 +5,8 @@ Possibilidade de Admin enviar mensagem para utilizador
 Possibilidade de ver se o utilizador esta online e quando foi o ultimo logging do utilizador 
 Pensar em maneira de inserir as partidas do excel
 
+Ao enviar notificação de como esta terminado avisar se tiver tarefa 1/2/3 avisar que a máquina tem algo planeado para aguardar por instruções (NOTIFICAR POR MODAL)
+NOTIFICAR TECNICO QUANDO A MÁQUINA ESTA DISPONIVEL PARA A AMOSTRA (NOTIFICAR POR MODAL)
 
 dashboard-maquinas.html
 

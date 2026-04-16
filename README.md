@@ -2,7 +2,7 @@ Adicionar tooltips a todos os botoes?
 Possibilidade de Admin enviar mensagem para utilizador
 Pensar em maneira de inserir as partidas do excel
 
-Ao enviar notificação de como esta terminado avisar se tiver tarefa 1/2/3 avisar que a máquina tem algo planeado para aguardar por instruções (NOTIFICAR POR MODAL)
+Ao enviar notificação de como esta terminado avisar se tiver tarefa 1/2/3 avisar que a máquina tem algo planeado para aguardar por instruções (NOTIFICAR POR MODAL) - Máquina S/ Tarefas Planeadas
 NOTIFICAR TECNICO QUANDO A MÁQUINA ESTA DISPONIVEL PARA A AMOSTRA (NOTIFICAR POR MODAL)
 
 dashboard-maquinas.html

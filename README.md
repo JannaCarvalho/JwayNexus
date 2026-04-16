@@ -13,6 +13,9 @@ mapa-encomendas.html
 	- Na data de aprovação não me deixa colocar o ano manualmente, atualiza depois de inserir 2 numeros no ano
 mapa-tinturaria.html
 	- Dar Glow vermelho se a OF/COR tem o estado ENVIADO ou ENV.PARTE
+manifest.json
+  	- "name": "Jway - Sistema de Fábrica", alterar para Jway Nexus!?
+
 dashboard-chao-fabrica.html (?)
 	- CONTROLO DE AGULHAS (TROCA DE AGULHAS E STOCK)
 	
